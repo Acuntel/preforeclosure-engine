@@ -1,0 +1,193 @@
+{
+  "leads": [],
+  "sources": [
+    {
+      "id": "probate-dailyherald",
+      "label": "Daily Herald — probate / deceased-owner estates",
+      "kind": "trigger",
+      "counties": [
+        "DuPage",
+        "Lake",
+        "Kane",
+        "McHenry",
+        "Cook",
+        "Will"
+      ],
+      "status": "ok",
+      "count": 0,
+      "inTarget": 0,
+      "note": "cached · 0 probate estates (0 notices scanned, 0 in feed)"
+    },
+    {
+      "id": "chicago-violations",
+      "label": "Chicago — open building-code violations (distress)",
+      "kind": "trigger",
+      "counties": [
+        "Cook"
+      ],
+      "status": "error",
+      "count": 0,
+      "inTarget": 0,
+      "note": "cached · fetch failed"
+    },
+    {
+      "id": "craigslist-fsbo",
+      "label": "Craigslist — for-sale-by-owner (asking price)",
+      "kind": "trigger",
+      "counties": [
+        "Cook",
+        "DuPage",
+        "Lake",
+        "Will",
+        "Kane",
+        "McHenry",
+        "Winnebago"
+      ],
+      "status": "ok",
+      "count": 0,
+      "inTarget": 0,
+      "note": "cached · 0 FSBO listings across 5 regions"
+    },
+    {
+      "id": "recorder-dupage",
+      "label": "DuPage Recorder — recorded LIS PENDENS (earliest signal)",
+      "kind": "trigger",
+      "status": "blocked",
+      "count": 0,
+      "note": "skipped — slow/login-gated source"
+    },
+    {
+      "id": "tjsc",
+      "label": "The Judicial Sales Corp — upcoming sales (multi-county)",
+      "kind": "trigger",
+      "counties": [
+        "Boone",
+        "Cook",
+        "McHenry",
+        "Winnebago"
+      ],
+      "status": "blocked",
+      "count": 0,
+      "inTarget": 0,
+      "note": "tjsc.com unreachable: fetch failed (endpoint https://www.tjsc.com/Sales/UpcomingSales)"
+    },
+    {
+      "id": "intercounty",
+      "label": "Intercounty Judicial Sales Corp — sales (statewide)",
+      "kind": "trigger",
+      "counties": [
+        "Boone",
+        "Kane",
+        "Lake",
+        "McHenry",
+        "Will",
+        "Winnebago"
+      ],
+      "status": "blocked",
+      "count": 0,
+      "inTarget": 0,
+      "note": "intercountyjudicialsales.com unreachable: fetch failed (endpoint https://intercountyjudicialsales.com/sales/)"
+    },
+    {
+      "id": "public-notice-il",
+      "label": "Public Notice Illinois — statewide foreclosure notices",
+      "kind": "trigger",
+      "counties": [
+        "(statewide)"
+      ],
+      "status": "blocked",
+      "count": 0,
+      "inTarget": 0,
+      "note": "cached · Request failed: fetch failed. Endpoint: https://www.publicnoticeillinois.com/Search.aspx (cookieless session + WebForms postback)."
+    },
+    {
+      "id": "recorder-lake",
+      "label": "Lake County recorder — recorded LIS PENDENS (Kofile)",
+      "kind": "trigger",
+      "counties": [
+        "Lake"
+      ],
+      "status": "blocked",
+      "count": 0,
+      "inTarget": 0,
+      "note": "cached · https://lake.il.publicsearch.us/ unreachable or session changed (fetch failed). API: wss://lake.il.publicsearch.us/ws send \"@kofile/FETCH_DOCUMENTS/v4\", authed by the signed authToken/authToken.sig cookies from GET /."
+    },
+    {
+      "id": "recorder-will",
+      "label": "Will County Recorder — recorded LIS PENDENS (Fidlar AvaWeb)",
+      "kind": "trigger",
+      "counties": [
+        "Will"
+      ],
+      "status": "blocked",
+      "count": 0,
+      "inTarget": 0,
+      "note": "cached · POST https://ilwill.fidlar.com/ILWIll/Scrap.WebService.Ava/token (anonymous OAuth grant) failed: fetch failed. The free index search at https://ilwill.fidlar.com/ILWIll/Scrap.WebService.Ava/breeze/Search needs this anonymous Bearer token; reCAPTCHA v3 only gates paid image View/Print."
+    },
+    {
+      "id": "recorder-cook",
+      "label": "Cook County Clerk — recorded LIS PENDENS (CRS)",
+      "kind": "trigger",
+      "counties": [
+        "Cook"
+      ],
+      "status": "blocked",
+      "count": 0,
+      "inTarget": 0,
+      "note": "cached · GET https://crs.cookcountyclerkil.gov/Search/Additional failed: fetch failed"
+    },
+    {
+      "id": "lake-sheriff",
+      "label": "Lake County Sheriff — CivilView foreclosure sales",
+      "kind": "trigger",
+      "counties": [
+        "Lake"
+      ],
+      "status": "blocked",
+      "count": 0,
+      "inTarget": 0,
+      "note": "cached · Lake CivilView list unreachable: fetch failed"
+    },
+    {
+      "id": "will-sheriff",
+      "label": "Will County Sheriff — upcoming foreclosure sales",
+      "kind": "trigger",
+      "counties": [
+        "Will"
+      ],
+      "status": "blocked",
+      "count": 0,
+      "inTarget": 0,
+      "note": "Will County Sheriff list unreachable: fetch failed (endpoint https://www.willcosheriff.org/foreclosures/index.php/upcoming-sales?limitstart5=0)."
+    },
+    {
+      "id": "kane-sheriff",
+      "label": "Kane County Sheriff — upcoming foreclosure sales (PDF)",
+      "kind": "trigger",
+      "counties": [
+        "Kane"
+      ],
+      "status": "blocked",
+      "count": 0,
+      "inTarget": 0,
+      "note": "GET https://applications.kanecountyil.gov/foreclosures/foreclosures.pdf failed: fetch failed (Kane Sheriff foreclosure PDF)."
+    },
+    {
+      "id": "mchenry-sheriff",
+      "label": "McHenry County Sheriff — current foreclosure list (PDF)",
+      "kind": "trigger",
+      "counties": [
+        "McHenry"
+      ],
+      "status": "blocked",
+      "count": 0,
+      "inTarget": 0,
+      "note": "Could not download McHenry sheriff foreclosure PDF (https://www.mchenrysheriff.org/wp-content/uploads/pdf-uploads/ForeclosureList.pdf): fetch failed. Landing: https://www.mchenrysheriff.org/community/foreclosure/"
+    }
+  ],
+  "rawTotal": 0,
+  "kept": 0,
+  "dropped": 0,
+  "scrapedAt": "2026-07-25T06:20:50.950Z",
+  "profile": "vince"
+}

@@ -1,0 +1,15 @@
+node_modules/
+.git/
+/data/
+demo/leads*.json
+autorun/logs/
+.vince-state.json
+.z-state.json
+.vince-traced.json
+*.local.json
+*.log
+dupage-page-*.html
+docs/
+.cache/
+.playwright/
+vince-mail-relay/

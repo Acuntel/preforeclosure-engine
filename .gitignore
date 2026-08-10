@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+data/leads-*.json
+demo/leads.json
+.vince-state.json
+.vince-traced.json
+output/
+*.log
+.vince-test-state.json
+.cache/
+.DS_Store
+scraper_output/
+will_pdfs/
+lambda_relay/.env*

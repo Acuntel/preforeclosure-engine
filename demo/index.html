@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>REDLINE — Pre-Foreclosure Acquisition Desk</title>
+<!--
+  Self-contained OFFLINE demo. No build, no npm, no internet required.
+  Double-click to open. All data below is SAMPLE Rockford/Belvidere data shaped
+  exactly like the live engine's output (see ../MASTER_PROMPT.md §6).
+  Brand "REDLINE" is a placeholder — change BRAND below to rename live.
+-->
+<style>
+  :root{
+    --bg:#0a0d13; --panel:#121722; --panel-2:#161c29; --line:#232b3b;
+    --ink:#e7eaf2; --muted:#8a93a8; --faint:#5b6478;
+    --red:#e5484d; --red-dim:#7a2226; --green:#33b074; --amber:#f0a93b; --blue:#5b8def;
+    --shadow:0 8px 30px rgba(0,0,0,.45);
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Inter",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.45}
+  body{padding-bottom:60px}
+  ::selection{background:var(--red);color:#fff}
+  a{color:var(--blue);text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+  /* ---------- top bar ---------- */
+  header{position:sticky;top:0;z-index:30;background:rgba(10,13,19,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:18px;padding:12px 22px;max-width:1480px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:11px}
+  .logo{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--red),#b02025);display:grid;place-items:center;font-weight:800;color:#fff;box-shadow:0 0 0 1px rgba(229,72,77,.4),0 4px 14px rgba(229,72,77,.35)}
+  .brand h1{font-size:16px;font-weight:700;letter-spacing:.5px}
+  .brand .sub{font-size:11px;color:var(--muted);letter-spacing:.3px;margin-top:-2px}
+  .grow{flex:1}
+  .search{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 11px;width:260px}
+  .search input{background:none;border:none;outline:none;color:var(--ink);width:100%;font-size:13px}
+  .search input::placeholder{color:var(--faint)}
+  .btn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:13px;font-weight:600;color:var(--ink);display:inline-flex;align-items:center;gap:7px;transition:.15s}
+  .btn:hover{border-color:#3a455c;background:var(--panel-2)}
+  .btn.red{background:linear-gradient(135deg,var(--red),#c0282d);border-color:transparent;box-shadow:0 4px 14px rgba(229,72,77,.3)}
+  .btn.red:hover{filter:brightness(1.08)}
+  .sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(51,176,116,.18);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+  .trust{max-width:1480px;margin:0 auto;padding:7px 22px;font-size:11.5px;color:var(--faint);display:flex;gap:16px;align-items:center;border-bottom:1px solid var(--line)}
+  .trust b{color:var(--muted);font-weight:600}
+  .badge-sample{margin-left:auto;background:rgba(240,169,59,.12);color:var(--amber);border:1px solid rgba(240,169,59,.3);padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;letter-spacing:.4px}
+
+  main{max-width:1480px;margin:0 auto;padding:22px}
+
+  /* ---------- county filter ---------- */
+  .pills{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+  .pill{padding:7px 14px;border-radius:20px;border:1px solid var(--line);background:var(--panel);font-size:12.5px;font-weight:600;color:var(--muted);transition:.15s}
+  .pill:hover{color:var(--ink);border-color:#3a455c}
+  .pill.on{background:var(--ink);color:#0a0d13;border-color:var(--ink)}
+  .pill .c{opacity:.6;font-weight:700;margin-left:5px}
+
+  /* ---------- KPIs ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:26px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 17px;position:relative;overflow:hidden}
+  .kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent,var(--red))}
+  .kpi .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+  .kpi .v{font-size:27px;font-weight:750;margin-top:7px;letter-spacing:-.5px;font-family:var(--mono)}
+  .kpi .d{font-size:11.5px;color:var(--faint);margin-top:4px}
+
+  .sec-h{display:flex;align-items:center;gap:11px;margin:6px 0 14px}
+  .sec-h h2{font-size:14px;font-weight:700;letter-spacing:.3px}
+  .sec-h .hint{font-size:11.5px;color:var(--faint)}
+  .sec-h .line{flex:1;height:1px;background:var(--line)}
+
+  /* ---------- pipeline ---------- */
+  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:30px}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-height:120px}
+  .col-h{padding:13px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+  .col-h .t{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700}
+  .col-h .t .swatch{width:9px;height:9px;border-radius:3px}
+  .col-h .meta{font-size:11px;color:var(--faint);margin-top:4px}
+  .col-h .cnt{margin-left:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700;font-family:var(--mono)}
+  .col-b{padding:10px;display:flex;flex-direction:column;gap:9px;overflow-y:auto;max-height:430px}
+  .card{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:11px;cursor:pointer;transition:.13s;border-left:3px solid var(--cardc,var(--line))}
+  .card:hover{border-color:#3a455c;transform:translateY(-1px);box-shadow:var(--shadow)}
+  .card .addr{font-weight:650;font-size:13px}
+  .card .ci{font-size:11px;color:var(--muted);margin-top:1px}
+  .card .row{display:flex;align-items:center;justify-content:space-between;margin-top:9px}
+  .card .own{font-size:11px;color:var(--faint);font-family:var(--mono)}
+  .chip{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;font-family:var(--mono)}
+  .chip.eq{background:rgba(51,176,116,.12);color:var(--green)}
+  .countdown{font-size:11px;font-weight:700;font-family:var(--mono)}
+  .cd-red{color:var(--red)} .cd-amber{color:var(--amber)} .cd-blue{color:var(--blue)} .cd-faint{color:var(--faint)}
+  .score{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted);font-family:var(--mono)}
+  .score .bar{width:34px;height:4px;border-radius:3px;background:var(--line);overflow:hidden}
+  .score .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--amber),var(--green))}
+
+  /* ---------- table ---------- */
+  .tablewrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;padding:11px 14px;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+  thead th:hover{color:var(--ink)}
+  tbody td{padding:11px 14px;border-bottom:1px solid rgba(35,43,59,.55);white-space:nowrap}
+  tbody tr{cursor:pointer;transition:.1s}
+  tbody tr:hover{background:var(--panel-2)}
+  tbody tr:last-child td{border-bottom:none}
+  .mono{font-family:var(--mono)}
+  .stg{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:5px;display:inline-block}
+  .muted{color:var(--muted)} .faint{color:var(--faint)}
+  .abs{font-size:9.5px;font-weight:700;color:var(--amber);border:1px solid rgba(240,169,59,.3);border-radius:4px;padding:1px 5px;margin-left:6px}
+
+  /* ---------- slide-over ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(5,7,11,.6);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:.2s;z-index:40}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:560px;max-width:94vw;background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow);transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);z-index:50;overflow-y:auto}
+  .drawer.on{transform:translateX(0)}
+  .dh{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);padding:18px 22px;z-index:2}
+  .dh .x{position:absolute;top:16px;right:18px;font-size:20px;color:var(--muted);width:30px;height:30px;border-radius:7px}
+  .dh .x:hover{background:var(--panel-2);color:var(--ink)}
+  .dh .addr{font-size:19px;font-weight:750;letter-spacing:-.3px}
+  .dh .ci{color:var(--muted);font-size:13px;margin-top:2px}
+  .dh .tags{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;align-items:center}
+  .db{padding:18px 22px}
+  .grp{margin-bottom:22px}
+  .grp h3{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--faint);font-weight:700;margin-bottom:11px;display:flex;align-items:center;gap:8px}
+  .grp h3::after{content:"";flex:1;height:1px;background:var(--line)}
+  .kv{display:grid;grid-template-columns:1fr 1fr;gap:11px 18px}
+  .kv .f{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.4px}
+  .kv .val{font-size:13.5px;font-weight:600;margin-top:2px}
+  .kv .val.mono{font-family:var(--mono);font-weight:600}
+  .full{grid-column:1/3}
+  .equity-box{background:linear-gradient(135deg,rgba(51,176,116,.1),rgba(51,176,116,.02));border:1px solid rgba(51,176,116,.25);border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
+  .equity-box .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .equity-box .n{font-size:26px;font-weight:800;font-family:var(--mono);color:var(--green);letter-spacing:-.5px}
+  .equity-box .calc{font-size:11px;color:var(--faint);text-align:right;font-family:var(--mono)}
+
+  .contact-locked{background:var(--panel-2);border:1px dashed var(--line);border-radius:10px;padding:16px;text-align:center}
+  .contact-locked .t{font-size:13px;color:var(--muted);margin-bottom:11px}
+  .contact-revealed{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .contact-revealed .r{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13.5px}
+  .contact-revealed .r .ic{width:26px;color:var(--muted)}
+  .contact-revealed .r .v{font-weight:650;font-family:var(--mono)}
+  .src-tag{font-size:10px;color:var(--faint);margin-top:10px}
+
+  /* outreach timeline */
+  .timeline{position:relative;padding-left:24px}
+  .timeline::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--line)}
+  .step{position:relative;padding:0 0 16px}
+  .step:last-child{padding-bottom:0}
+  .step .node{position:absolute;left:-21px;top:2px;width:14px;height:14px;border-radius:50%;border:2px solid var(--panel);background:var(--faint)}
+  .step.sent .node{background:var(--green)} .step.scheduled .node{background:var(--blue)} .step.draft .node{background:var(--faint)}
+  .step .when{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+  .step .what{font-size:13px;font-weight:600;margin-top:1px}
+  .step .st{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:5px;margin-left:8px}
+  .st-sent{background:rgba(51,176,116,.13);color:var(--green)}
+  .st-scheduled{background:rgba(91,141,239,.13);color:var(--blue)}
+  .st-draft{background:rgba(138,147,168,.13);color:var(--muted)}
+  .step .prev{font-size:12px;color:var(--muted);margin-top:5px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-style:italic}
+
+  footer{max-width:1480px;margin:26px auto 0;padding:18px 22px;border-top:1px solid var(--line);font-size:11.5px;color:var(--faint)}
+  footer .srcs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:12px}
+  footer .srcs div b{color:var(--muted);display:block;margin-bottom:3px}
+  @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.board{grid-template-columns:repeat(2,1fr)}.search{width:170px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <div class="brand">
+      <div class="logo">R</div>
+      <div>
+        <h1 id="brandName">REDLINE</h1>
+        <div class="sub">Pre-Foreclosure Acquisition Desk</div>
+      </div>
+    </div>
+    <div class="grow"></div>
+    <div class="search">
+      <span style="color:var(--faint)">⌕</span>
+      <input id="q" type="text" placeholder="Search address or owner…" />
+    </div>
+    <button class="btn" id="exportBtn">⤓ Export CSV</button>
+    <button class="btn red" id="scrapeBtn">⚡ Live Scrape</button>
+    <div class="sync"><span class="dot"></span><span id="syncTxt">Sample data loaded</span></div>
+  </div>
+  <div class="trust">
+    <span><b>Public records only</b> — county assessor · circuit court · published legal notices</span>
+    <span>·</span><span><b>6 counties</b> wired</span>
+    <span>·</span><span>Owner · taxes · last sale · equity · case # · sale date</span>
+    <span class="badge-sample" id="dataBadge">SAMPLE DATA — click ⚡ Live Scrape</span>
+  </div>
+</header>
+
+<main>
+  <div class="pills" id="pills"></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="sec-h">
+    <h2>Pipeline</h2>
+    <span style="display:flex;gap:6px;margin-left:2px">
+      <button id="modeForeclosure" class="pill on" style="padding:5px 12px">⏱ Foreclosure timeline</button>
+      <button id="modeDeal" class="pill" style="padding:5px 12px">🎯 My deal pipeline</button>
+    </span>
+    <span class="line"></span>
+    <span class="hint" id="boardActive"></span>
+  </div>
+  <div class="board" id="board"></div>
+
+  <div class="sec-h">
+    <h2>All leads</h2>
+    <span class="hint" id="tblCount"></span>
+    <span class="line"></span>
+    <span class="hint">Click any row for the full tear-sheet ▸</span>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr id="thead"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    <b style="color:var(--muted)">Where this data comes from (every source free + public):</b>
+    <div class="srcs">
+      <div><b>Winnebago (Rockford)</b>Public Notice Illinois · assessor.wincoil.gov · Winnebago Sheriff (Roup) · 17th Circuit Clerk</div>
+      <div><b>Boone (Belvidere)</b>Judici.com chancery · booneil.devnetwedge.com · TJSC sales · Public Notice Illinois</div>
+      <div><b>Lake · McHenry · Will</b>County clerk + assessor GIS/wEdge · Public Notice Illinois · Will treasurer API (live)</div>
+    </div>
+    <div style="margin-top:14px">REDLINE · acquisitions-side counterpart to Buildium — built custom, owned by you, no per-deal cut. Demo build for the Wednesday walkthrough.</div>
+  </footer>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer"></aside>
+
+<script>
+/* ============================== CONFIG ============================== */
+const BRAND = "REDLINE"; // ← rename live in front of him
+const TODAY = new Date("2026-06-07");
+
+/* ============================== STAGES ============================== */
+const STAGES = {
+  lis_pendens:      {label:"Lis Pendens",        col:"Lis Pendens (filed)",   sub:"~90+ days out · earliest signal", color:"#5b8def"},
+  judgment:         {label:"Judgment Entered",   col:"Judgment Entered",      sub:"~60 days · sale coming",          color:"#f0a93b"},
+  notice_of_sale:   {label:"Notice of Sale",     col:"Notice of Sale",        sub:"≤30 days · firm sale date",       color:"#e5684d"},
+  auction_imminent: {label:"Auction Imminent",   col:"Auction <7 days",       sub:"act now or it's gone",            color:"#e5484d"},
+};
+const STAGE_ORDER = ["lis_pendens","judgment","notice_of_sale","auction_imminent"];
+
+/* ============================== DATA (sample, real schema) ============================== */
+let LEADS = [
+ {id:1, county:"Winnebago", stage:"auction_imminent", address:"921 Kishwaukee St", city:"Rockford", zip:"61104", pin:"11-26-181-014",
+  owner:"Delgado, Marcus & Renee", mailing:"921 Kishwaukee St, Rockford IL 61104", absentee:false, beds:3, baths:1, sqft:1240, year:1948,
+  assessed:38120, tax:3411, taxYear:2025, lastSaleDate:"2015-06-19", lastSalePrice:97500, estMarket:139000, estDebt:88400,
+  case:"2026-FC-0188", court:"17th Judicial Circuit, Winnebago County", lender:"PennyMac Loan Services LLC", attorney:"Codilis & Associates PC",
+  filing:"2025-09-22", judgment:"2026-03-30", sale:"2026-06-11", openingBid:91200, score:84, phone:"(815) 555-0142", email:"m.delgado48@gmail.com"},
+
+ {id:2, county:"Winnebago", stage:"auction_imminent", address:"1208 Latham St", city:"Rockford", zip:"61103", pin:"11-14-403-027",
+  owner:"Whitfield, Sandra K", mailing:"4402 Pinecrest Rd, Rockford IL 61107", absentee:true, beds:2, baths:1, sqft:980, year:1955,
+  assessed:29740, tax:2688, taxYear:2025, lastSaleDate:"2009-04-02", lastSalePrice:71000, estMarket:108000, estDebt:54300,
+  case:"2026-FC-0151", court:"17th Judicial Circuit, Winnebago County", lender:"U.S. Bank N.A.", attorney:"Manley Deas Kochalski LLC",
+  filing:"2025-08-15", judgment:"2026-02-18", sale:"2026-06-13", openingBid:58900, score:91, phone:"(815) 555-0199", email:"skwhitfield@yahoo.com"},
+
+ {id:3, county:"Winnebago", stage:"notice_of_sale", address:"1714 Auburn St", city:"Rockford", zip:"61103", pin:"11-15-352-008",
+  owner:"Okafor, Daniel", mailing:"1714 Auburn St, Rockford IL 61103", absentee:false, beds:3, baths:2, sqft:1560, year:1962,
+  assessed:44900, tax:4072, taxYear:2025, lastSaleDate:"2018-11-08", lastSalePrice:134900, estMarket:171000, estDebt:121500,
+  case:"2026-FC-0203", court:"17th Judicial Circuit, Winnebago County", lender:"Rocket Mortgage LLC", attorney:"Heavner, Beyers & Mihlar LLC",
+  filing:"2025-10-11", judgment:"2026-04-14", sale:"2026-06-20", openingBid:126800, score:72, phone:"(779) 555-0117", email:"dokafor1@outlook.com"},
+
+ {id:4, county:"Winnebago", stage:"notice_of_sale", address:"3719 Camp Ave", city:"Rockford", zip:"61101", pin:"11-22-104-019",
+  owner:"Brennan, Thomas P & Mary", mailing:"3719 Camp Ave, Rockford IL 61101", absentee:false, beds:4, baths:2, sqft:1890, year:1971,
+  assessed:51200, tax:4690, taxYear:2025, lastSaleDate:"2006-07-21", lastSalePrice:142000, estMarket:189000, estDebt:96700,
+  case:"2026-FC-0176", court:"17th Judicial Circuit, Winnebago County", lender:"Freedom Mortgage Corp", attorney:"Anselmo Lindberg & Associates",
+  filing:"2025-09-04", judgment:"2026-03-12", sale:"2026-06-26", openingBid:101300, score:88, phone:"(815) 555-0163", email:"tbrennan.home@gmail.com"},
+
+ {id:5, county:"Winnebago", stage:"notice_of_sale", address:"2117 School St", city:"Rockford", zip:"61101", pin:"11-21-279-033",
+  owner:"Vasquez, Lorena", mailing:"2117 School St, Rockford IL 61101", absentee:false, beds:2, baths:1, sqft:1024, year:1951,
+  assessed:27600, tax:2510, taxYear:2025, lastSaleDate:"2013-03-28", lastSalePrice:64500, estMarket:99000, estDebt:61200,
+  case:"2026-FC-0211", court:"17th Judicial Circuit, Winnebago County", lender:"Carrington Mortgage Services", attorney:"Potestivo & Associates PC",
+  filing:"2025-10-19", judgment:"2026-04-22", sale:"2026-07-02", openingBid:64800, score:69, phone:"(815) 555-0188", email:"lvasquez22@gmail.com"},
+
+ {id:6, county:"Winnebago", stage:"judgment", address:"3382 Spring Brook Rd", city:"Rockford", zip:"61114", pin:"12-01-307-001",
+  owner:"Harmon, Gregory", mailing:"PO Box 4821, Rockford IL 61110", absentee:true, beds:3, baths:2, sqft:1680, year:1989,
+  assessed:62400, tax:5880, taxYear:2025, lastSaleDate:"2011-09-15", lastSalePrice:158000, estMarket:236000, estDebt:121400,
+  case:"2026-FC-0229", court:"17th Judicial Circuit, Winnebago County", lender:"Wells Fargo Bank N.A.", attorney:"Johnson, Blumberg & Associates LLC",
+  filing:"2025-11-26", judgment:"2026-05-15", sale:"2026-07-28", openingBid:128600, score:90, phone:"(815) 555-0124", email:"g.harmon.re@gmail.com"},
+
+ {id:7, county:"Winnebago", stage:"judgment", address:"6043 Rote Rd", city:"Rockford", zip:"61107", pin:"12-09-226-045",
+  owner:"Pearson, Alicia & Jordan", mailing:"6043 Rote Rd, Rockford IL 61107", absentee:false, beds:4, baths:3, sqft:2310, year:1998,
+  assessed:79800, tax:7340, taxYear:2025, lastSaleDate:"2019-05-30", lastSalePrice:251000, estMarket:298000, estDebt:214500,
+  case:"2026-FC-0240", court:"17th Judicial Circuit, Winnebago County", lender:"NewRez LLC", attorney:"Diaz Anselmo & Associates LLC",
+  filing:"2025-12-08", judgment:"2026-05-20", sale:"2026-08-11", openingBid:221300, score:64, phone:"(779) 555-0151", email:"pearsonhouse@icloud.com"},
+
+ {id:8, county:"Winnebago", stage:"lis_pendens", address:"4520 Harrison Ave", city:"Rockford", zip:"61108", pin:"12-15-451-012",
+  owner:"Nguyen, Bao", mailing:"812 N Mulford Rd, Rockford IL 61107", absentee:true, beds:3, baths:1, sqft:1320, year:1965,
+  assessed:41100, tax:3760, taxYear:2025, lastSaleDate:"2008-10-17", lastSalePrice:118000, estMarket:154000, estDebt:79800,
+  case:"2026-FC-0271", court:"17th Judicial Circuit, Winnebago County", lender:"Lakeview Loan Servicing LLC", attorney:"McCalla Raymer Leibert Pierce",
+  filing:"2026-05-28", judgment:null, sale:null, openingBid:null, score:82, phone:"(815) 555-0173", email:"bao.nguyen.il@gmail.com"},
+
+ {id:9, county:"Winnebago", stage:"lis_pendens", address:"512 N Central Ave", city:"Rockford", zip:"61101", pin:"11-23-156-007",
+  owner:"Ramirez, Estate of Hector", mailing:"512 N Central Ave, Rockford IL 61101", absentee:false, beds:2, baths:1, sqft:1100, year:1942,
+  assessed:24800, tax:2260, taxYear:2025, lastSaleDate:"1998-06-11", lastSalePrice:42000, estMarket:92000, estDebt:31500,
+  case:"2026-FC-0279", court:"17th Judicial Circuit, Winnebago County", lender:"Nationstar Mortgage LLC (Mr. Cooper)", attorney:"Codilis & Associates PC",
+  filing:"2026-06-02", judgment:null, sale:null, openingBid:null, score:86, phone:"(815) 555-0109", email:null},
+
+ {id:10, county:"Boone", stage:"auction_imminent", address:"415 Caswell St", city:"Belvidere", zip:"61008", pin:"05-35-281-006",
+  owner:"Mueller, Karl D", mailing:"415 Caswell St, Belvidere IL 61008", absentee:false, beds:3, baths:1, sqft:1408, year:1957,
+  assessed:43600, tax:4180, taxYear:2025, lastSaleDate:"2012-08-09", lastSalePrice:121500, estMarket:168000, estDebt:97600,
+  case:"07-2026-FC-0042", court:"17th Judicial Circuit, Boone County", lender:"U.S. Bank N.A.", attorney:"Manley Deas Kochalski LLC",
+  filing:"2025-09-01", judgment:"2026-02-26", sale:"2026-06-12", openingBid:102400, score:83, phone:"(815) 555-0211", email:"kmueller.belv@gmail.com"},
+
+ {id:11, county:"Boone", stage:"notice_of_sale", address:"624 Logan Ave", city:"Belvidere", zip:"61008", pin:"05-26-426-018",
+  owner:"Foster, Tanya", mailing:"624 Logan Ave, Belvidere IL 61008", absentee:false, beds:3, baths:2, sqft:1520, year:1968,
+  assessed:47200, tax:4520, taxYear:2025, lastSaleDate:"2016-04-15", lastSalePrice:139900, estMarket:182000, estDebt:128300,
+  case:"07-2026-FC-0051", court:"17th Judicial Circuit, Boone County", lender:"Rocket Mortgage LLC", attorney:"Heavner, Beyers & Mihlar LLC",
+  filing:"2025-10-07", judgment:"2026-04-09", sale:"2026-06-22", openingBid:131900, score:71, phone:"(815) 555-0234", email:"tanyaf.home@yahoo.com"},
+
+ {id:12, county:"Boone", stage:"notice_of_sale", address:"8902 Beloit Rd", city:"Poplar Grove", zip:"61065", pin:"03-18-100-022",
+  owner:"Carlson, Eric & Beth", mailing:"8902 Beloit Rd, Poplar Grove IL 61065", absentee:false, beds:4, baths:3, sqft:2480, year:2003,
+  assessed:88400, tax:8120, taxYear:2025, lastSaleDate:"2014-07-22", lastSalePrice:289000, estMarket:352000, estDebt:208700,
+  case:"07-2026-FC-0048", court:"17th Judicial Circuit, Boone County", lender:"Freedom Mortgage Corp", attorney:"Anselmo Lindberg & Associates",
+  filing:"2025-09-29", judgment:"2026-03-31", sale:"2026-07-06", openingBid:214200, score:93, phone:"(815) 555-0256", email:"carlsonfam03@gmail.com"},
+
+ {id:13, county:"Boone", stage:"judgment", address:"1130 Whitney Blvd", city:"Belvidere", zip:"61008", pin:"05-25-355-009",
+  owner:"Doyle, Patrick", mailing:"1130 Whitney Blvd, Belvidere IL 61008", absentee:false, beds:3, baths:2, sqft:1640, year:1979,
+  assessed:53100, tax:5080, taxYear:2025, lastSaleDate:"2010-02-19", lastSalePrice:147000, estMarket:201000, estDebt:104900,
+  case:"07-2026-FC-0055", court:"17th Judicial Circuit, Boone County", lender:"Wells Fargo Bank N.A.", attorney:"Johnson, Blumberg & Associates LLC",
+  filing:"2025-11-14", judgment:"2026-05-08", sale:"2026-08-04", openingBid:110600, score:87, phone:"(815) 555-0278", email:"pdoyle.bel@outlook.com"},
+
+ {id:14, county:"Boone", stage:"lis_pendens", address:"207 Pearl St", city:"Belvidere", zip:"61008", pin:"05-35-104-031",
+  owner:"Sandoval, Maria", mailing:"3914 Squaw Prairie Rd, Belvidere IL 61008", absentee:true, beds:2, baths:1, sqft:1060, year:1949,
+  assessed:31200, tax:2990, taxYear:2025, lastSaleDate:"2007-05-08", lastSalePrice:94500, estMarket:128000, estDebt:58200,
+  case:"07-2026-FC-0061", court:"17th Judicial Circuit, Boone County", lender:"Carrington Mortgage Services", attorney:"Potestivo & Associates PC",
+  filing:"2026-05-30", judgment:null, sale:null, openingBid:null, score:85, phone:"(815) 555-0290", email:"m.sandoval.il@gmail.com"},
+
+ {id:15, county:"Boone", stage:"lis_pendens", address:"320 Julien St", city:"Belvidere", zip:"61008", pin:"05-26-432-004",
+  owner:"Abbott, Raymond", mailing:"320 Julien St, Belvidere IL 61008", absentee:false, beds:3, baths:1, sqft:1280, year:1960,
+  assessed:38800, tax:3720, taxYear:2025, lastSaleDate:"2003-09-12", lastSalePrice:88000, estMarket:142000, estDebt:44600,
+  case:"07-2026-FC-0063", court:"17th Judicial Circuit, Boone County", lender:"NewRez LLC", attorney:"Diaz Anselmo & Associates LLC",
+  filing:"2026-06-04", judgment:null, sale:null, openingBid:null, score:89, phone:"(815) 555-0301", email:null},
+
+ {id:16, county:"Lake", stage:"notice_of_sale", address:"412 Grand Ave", city:"Waukegan", zip:"60085", pin:"08-21-307-015",
+  owner:"Jensen, Carl & Donna", mailing:"412 Grand Ave, Waukegan IL 60085", absentee:false, beds:3, baths:2, sqft:1700, year:1958,
+  assessed:58300, tax:7960, taxYear:2025, lastSaleDate:"2009-11-30", lastSalePrice:178000, estMarket:228000, estDebt:139800,
+  case:"2026-CH-0744", court:"19th Judicial Circuit, Lake County", lender:"PennyMac Loan Services LLC", attorney:"Codilis & Associates PC",
+  filing:"2025-10-02", judgment:"2026-04-06", sale:"2026-06-24", openingBid:146500, score:76, phone:"(847) 555-0142", email:"jensen.waukegan@gmail.com"},
+
+ {id:17, county:"McHenry", stage:"judgment", address:"5210 W Elm St", city:"McHenry", zip:"60050", pin:"09-26-180-007",
+  owner:"Kowalski, Brian", mailing:"5210 W Elm St, McHenry IL 60050", absentee:false, beds:4, baths:3, sqft:2150, year:1994,
+  assessed:74900, tax:9210, taxYear:2025, lastSaleDate:"2017-06-08", lastSalePrice:262000, estMarket:312000, estDebt:198400,
+  case:"2026-FC-0319", court:"22nd Judicial Circuit, McHenry County", lender:"Wells Fargo Bank N.A.", attorney:"Heavner, Beyers & Mihlar LLC",
+  filing:"2025-12-01", judgment:"2026-05-11", sale:"2026-07-30", openingBid:205700, score:68, phone:"(815) 555-0412", email:"bkowalski.mch@gmail.com"},
+
+ {id:18, county:"Will", stage:"lis_pendens", address:"54 Lakeshore Dr", city:"Wilmington", zip:"60481", pin:"24-04-303-082",
+  owner:"Kielnik, Richard & Susan", mailing:"54 Lake Shore Dr, Wilmington IL 60481", absentee:false, beds:2, baths:1, sqft:1180, year:1972,
+  assessed:33400, tax:3640, taxYear:2025, lastSaleDate:"2005-08-19", lastSalePrice:96000, estMarket:148000, estDebt:51900,
+  case:"2026-CH-0512", court:"12th Judicial Circuit, Will County", lender:"Tax Delinquent + Lis Pendens", attorney:"(treasurer + recorder feed)",
+  filing:"2026-05-22", judgment:null, sale:null, openingBid:null, score:80, phone:"(815) 555-0488", email:"rkielnik@gmail.com"},
+];
+
+/* ============================== HELPERS ============================== */
+const $=(s,el=document)=>el.querySelector(s);
+const fmt$=n=>n==null?"—":"$"+Math.round(n).toLocaleString();
+const fmtDate=s=>{if(!s)return"—";const d=new Date(s+"T00:00:00");return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})};
+const daysTo=s=>s?Math.round((new Date(s+"T00:00:00")-TODAY)/864e5):null;
+const equity=l=>l.estMarket-l.estDebt;
+const equityPct=l=>Math.round(equity(l)/l.estMarket*100);
+
+function countdownClass(d){if(d==null)return"cd-faint";if(d<=7)return"cd-red";if(d<=30)return"cd-amber";return"cd-blue"}
+function countdownText(l){const d=daysTo(l.sale);if(d==null)return"est. 90+ days";if(d<0)return"past";return d+" days to sale"}
+
+let activeCounty="All", activeStage=null, query="", sortKey="score", sortDir=-1;
+
+const COUNTIES=[...new Set(LEADS.map(l=>l.county))];
+
+/* ============================== FILTER + SORT ============================== */
+function filtered(){
+  let r=LEADS.filter(l=>
+    (activeCounty==="All"||l.county===activeCounty)&&
+    (!activeStage||l.stage===activeStage)&&
+    (!query||(l.address+" "+l.owner+" "+l.city).toLowerCase().includes(query.toLowerCase())));
+  r.sort((a,b)=>{
+    let av,bv;
+    if(sortKey==="equity"){av=equity(a);bv=equity(b)}
+    else if(sortKey==="days"){av=daysTo(a.sale)??9999;bv=daysTo(b.sale)??9999}
+    else{av=a[sortKey];bv=b[sortKey]}
+    if(av==null)av=""; if(bv==null)bv="";
+    return (av>bv?1:av<bv?-1:0)*sortDir;
+  });
+  return r;
+}
+
+/* ============================== RENDER: pills ============================== */
+function renderPills(){
+  const wrap=$("#pills");
+  const opts=["All",...new Set(LEADS.map(l=>l.county))];
+  wrap.innerHTML=opts.map(c=>{
+    const n=c==="All"?LEADS.length:LEADS.filter(l=>l.county===c).length;
+    return `<button class="pill ${activeCounty===c?'on':''}" data-c="${c}">${c}<span class="c">${n}</span></button>`;
+  }).join("");
+  wrap.querySelectorAll(".pill").forEach(p=>p.onclick=()=>{activeCounty=p.dataset.c;activeStage=null;renderAll()});
+}
+
+/* ============================== RENDER: KPIs ============================== */
+function renderKpis(){
+  const base=LEADS.filter(l=>activeCounty==="All"||l.county===activeCounty);
+  const inWindow=base.filter(l=>{const d=daysTo(l.sale);return d!=null&&d<=30&&d>=0}).length;
+  const totalEq=base.reduce((s,l)=>s+equity(l),0);
+  const newWk=base.filter(l=>{const d=daysTo(l.filing);return d!=null&&d>=-7}).length;
+  const avgDays=(()=>{const ds=base.map(l=>daysTo(l.sale)).filter(d=>d!=null&&d>=0);return ds.length?Math.round(ds.reduce((a,b)=>a+b,0)/ds.length):"—"})();
+  const confirmed=base.filter(l=>(l.confidence&&l.confidence!=="single")).length;
+  const reached=base.filter(l=>reachedOf(l)).length;
+  const cards=[
+    {k:"Active pre-foreclosures",v:base.length,d:activeCounty==="All"?"across 6 counties":"in "+activeCounty,c:"var(--red)"},
+    {k:"Cross-confirmed",v:confirmed,d:"2+ free sources align",c:"var(--green)"},
+    {k:"Reached out",v:reached+" / "+base.length,d:"checked off by you",c:"#8b5cf6"},
+    {k:"In auction window ≤30d",v:inWindow,d:"act now — sale date set",c:"var(--amber)"},
+    {k:"Est. total equity",v:fmt$(totalEq),d:"market − est. payoff",c:"var(--blue)"},
+  ];
+  $("#kpis").innerHTML=cards.map(c=>`<div class="kpi" style="--accent:${c.c}"><div class="k">${c.k}</div><div class="v">${c.v}</div><div class="d">${c.d}</div></div>`).join("");
+}
+
+/* ============================== DEAL PIPELINE (user-tracked, saved in browser) ============================== */
+const DEAL_STAGES=[
+  {k:"new",label:"New",color:"#5b8def",sub:"not yet worked"},
+  {k:"contacted",label:"Contacted",color:"#8b5cf6",sub:"outreach sent"},
+  {k:"negotiating",label:"Negotiating",color:"#f0a93b",sub:"in conversation"},
+  {k:"contract",label:"Under contract",color:"#33b074",sub:"deal locked"},
+  {k:"closed",label:"Closed / Won",color:"#22c55e",sub:"bought it"},
+  {k:"dead",label:"Dead / Pass",color:"#6b7280",sub:"no deal"},
+];
+const DEAL_BY_K=Object.fromEntries(DEAL_STAGES.map(s=>[s.k,s]));
+let boardMode="foreclosure"; // "foreclosure" | "deal"
+// stable key across re-scrapes (id changes each scrape; case#/pin/address don't)
+function dealKey(l){return ((l.caseNumber||l.pin||l.address||("id"+l.id))+"|"+(l.county||"")).toUpperCase().replace(/\s+/g,"");}
+let DEALS=(()=>{try{return JSON.parse(localStorage.getItem("redline_deals")||"{}")}catch{return {}}})();
+function dealStatus(l){return (DEALS[dealKey(l)]||{}).status||"new";}
+function setDealStatus(l,st){const k=dealKey(l);DEALS[k]={status:st,updatedAt:Date.now()};try{localStorage.setItem("redline_deals",JSON.stringify(DEALS))}catch{}; renderAll(); if($("#drawer").classList.contains("on"))openDrawer(l.id);}
+function setDealById(id,st){const l=LEADS.find(x=>x.id===id);if(l)setDealStatus(l,st);}
+window.setDealById=setDealById;
+function dealDot(l){const s=DEAL_BY_K[dealStatus(l)]||DEAL_BY_K.new;return `<span title="Deal: ${s.label}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${s.color};vertical-align:middle"></span>`;}
+function confMini(l){if(l.confidence==="strong")return '<span style="color:var(--green);font-weight:700">✓✓✓</span>';if(l.confidence==="confirmed")return '<span style="color:var(--green);font-weight:700">✓✓</span>';return '<span style="color:var(--faint)">○</span>';}
+// "Reached out?" — a check you tick per lead, saved in the browser (stable key)
+function reachedOf(l){return !!(DEALS[dealKey(l)]||{}).reached;}
+function toggleReached(l){const k=dealKey(l);const cur=DEALS[k]||{status:"new"};cur.reached=!cur.reached;cur.updatedAt=Date.now();DEALS[k]=cur;try{localStorage.setItem("redline_deals",JSON.stringify(DEALS))}catch{}; renderAll(); if($("#drawer").classList.contains("on"))openDrawer(l.id);}
+function toggleReachedById(id){const l=LEADS.find(x=>x.id===id);if(l)toggleReached(l);}
+window.toggleReachedById=toggleReachedById;
+function reachChip(l){const r=reachedOf(l);return `<span onclick="event.stopPropagation();toggleReachedById(${l.id})" title="${r?'Reached out — click to undo':'Mark as reached out'}" style="cursor:pointer;white-space:nowrap;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;border:1px solid ${r?'rgba(51,176,116,.55)':'var(--line)'};background:${r?'rgba(51,176,116,.16)':'transparent'};color:${r?'var(--green)':'var(--faint)'}">${r?'✓ reached':'☐ reach'}</span>`;}
+
+/* ============================== RENDER: board (dual mode) ============================== */
+function cardHtml(l,color){
+  const d=daysTo(l.sale);const owner=(l.owner||"Owner TBD").split(",")[0];
+  return `<div class="card" style="--cardc:${color}${boardMode==='deal'?';cursor:grab':''}" data-id="${l.id}" draggable="${boardMode==='deal'}">
+    <div class="addr" style="display:flex;align-items:center;gap:6px">
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">${l.address||'<span style="color:var(--faint)">address gated</span>'} ${dealDot(l)}</span>
+      ${reachChip(l)}
+    </div>
+    <div class="ci">${l.city||""}${l.city?", IL ":""}${l.zip||""}</div>
+    <div class="row"><span class="own">${owner}${l.absentee?' · absentee':''}</span><span class="chip eq">+${fmt$(equity(l))}</span></div>
+    <div class="row"><span class="countdown ${countdownClass(d)}">${countdownText(l)}</span>
+      <span class="score" title="${(l.confirmText||'').replace(/"/g,'&quot;')}">${confMini(l)} <span class="bar"><i style="width:${l.score}%"></i></span>${l.score}</span></div>
+  </div>`;
+}
+function renderBoard(){
+  const base=LEADS.filter(l=>(activeCounty==="All"||l.county===activeCounty)&&(!query||((l.address||"")+" "+(l.owner||"")+" "+(l.city||"")).toLowerCase().includes(query.toLowerCase())));
+  $("#boardActive").textContent=`${base.length} active${boardMode==="deal"?" · click a card to move its stage":" · click a column to filter the table"}`;
+  const cols = boardMode==="deal"
+    ? DEAL_STAGES.map(s=>({key:s.k,color:s.color,title:s.label,sub:s.sub,items:base.filter(l=>dealStatus(l)===s.k)}))
+    : STAGE_ORDER.map(sk=>{const S=STAGES[sk];return {key:sk,color:S.color,title:S.col,sub:S.sub,items:base.filter(l=>l.stage===sk).sort((a,b)=>(daysTo(a.sale)??9999)-(daysTo(b.sale)??9999))};});
+  $("#board").style.gridTemplateColumns=`repeat(${cols.length},minmax(0,1fr))`;
+  $("#board").innerHTML=cols.map(c=>{
+    const cards=c.items.map(l=>cardHtml(l,c.color)).join("")||`<div style="color:var(--faint);font-size:12px;padding:14px 6px;text-align:center">—</div>`;
+    return `<div class="col">
+      <div class="col-h" data-stage="${c.key}">
+        <div class="t"><span class="swatch" style="background:${c.color}"></span>${c.title}<span class="cnt">${c.items.length}</span></div>
+        <div class="meta">${c.sub}</div>
+      </div>
+      <div class="col-b">${cards}</div>
+    </div>`;
+  }).join("");
+  $("#board").querySelectorAll(".card").forEach(c=>c.onclick=()=>openDrawer(+c.dataset.id));
+  if(boardMode==="foreclosure"){
+    $("#board").querySelectorAll(".col-h").forEach(h=>h.onclick=()=>{activeStage=activeStage===h.dataset.stage?null:h.dataset.stage;renderTable()});
+  } else {
+    // DRAG-AND-DROP: drag a card onto another column to move its deal stage
+    let dragId=null;
+    $("#board").querySelectorAll(".card").forEach(c=>{
+      c.addEventListener("dragstart",e=>{dragId=+c.dataset.id;e.dataTransfer.effectAllowed="move";c.style.opacity=".4";});
+      c.addEventListener("dragend",()=>{c.style.opacity="";});
+    });
+    $("#board").querySelectorAll(".col").forEach(col=>{
+      const stage=col.querySelector(".col-h").dataset.stage;
+      const body=col.querySelector(".col-b");
+      col.addEventListener("dragover",e=>{e.preventDefault();e.dataTransfer.dropEffect="move";body.style.boxShadow="inset 0 0 0 2px var(--blue)";body.style.borderRadius="9px";});
+      col.addEventListener("dragleave",()=>{body.style.boxShadow="";});
+      col.addEventListener("drop",e=>{e.preventDefault();body.style.boxShadow="";if(dragId!=null)setDealById(dragId,stage);dragId=null;});
+    });
+  }
+}
+function setBoardMode(m){boardMode=m;activeStage=null;$("#modeForeclosure").classList.toggle("on",m==="foreclosure");$("#modeDeal").classList.toggle("on",m==="deal");renderBoard();renderTable();}
+
+/* ============================== RENDER: table ============================== */
+const COLS=[
+  {k:"address",t:"Property"},{k:"county",t:"County"},{k:"confirmations",t:"Confirmed"},{k:"stage",t:"Stage"},
+  {k:"days",t:"Days→Sale"},{k:"sale",t:"Sale date"},{k:"owner",t:"Owner"},
+  {k:"lastSalePrice",t:"Last sold"},{k:"tax",t:"Taxes"},{k:"equity",t:"Est. equity"},{k:"score",t:"Score"},
+];
+// cross-confirmation badge: number of free sources that align on this lead
+function confBadge(l){
+  const conf=l.confidence||"single";
+  const n=(l.confirmations||1)+(l.recordVerified?1:0);
+  const c=conf==="strong"?"var(--green)":conf==="confirmed"?"var(--green)":"var(--faint)";
+  const mark=conf==="single"?"○":"✓".repeat(Math.min(3,n));
+  return `<span title="${(l.confirmText||'').replace(/"/g,'&quot;')}" style="font-family:var(--mono);font-weight:700;font-size:11px;color:${c}">${mark} ${n}</span>${l.conflicts&&l.conflicts.length?` <span title="sources disagree on ${l.conflicts.map(x=>x.field).join(', ')}" style="color:var(--amber)">⚠</span>`:''}`;
+}
+function renderTable(){
+  $("#thead").innerHTML=COLS.map(c=>`<th data-k="${c.k}">${c.t}${sortKey===c.k?(sortDir>0?" ▲":" ▼"):""}</th>`).join("");
+  const rows=filtered();
+  $("#tblCount").textContent=`${rows.length} shown${activeStage?` · ${STAGES[activeStage].label} only (click column again to clear)`:""}`;
+  $("#tbody").innerHTML=rows.map(l=>{
+    const S=STAGES[l.stage]||STAGES.lis_pendens;const d=daysTo(l.sale);
+    return `<tr data-id="${l.id}">
+      <td><div style="display:flex;align-items:center;gap:8px"><b>${l.address||'<span class="faint">address gated</span>'}</b>${reachChip(l)}</div><div class="faint" style="font-size:11px">${l.city||''} ${l.zip||''}</div></td>
+      <td class="muted">${l.county||'—'}</td>
+      <td>${confBadge(l)}</td>
+      <td><span class="stg" style="background:${S.color}22;color:${S.color}">${S.label}</span></td>
+      <td class="mono ${countdownClass(d)}">${d==null?"—":d+"d"}</td>
+      <td class="mono muted">${fmtDate(l.sale)}</td>
+      <td>${l.owner||'<span class="faint">—</span>'}${l.absentee?'<span class="abs">ABSENTEE</span>':''}</td>
+      <td class="mono">${fmt$(l.lastSalePrice)}${l.lastSaleDate?`<span class="faint" style="font-size:10px"> '${String(l.lastSaleDate).slice(2,4)}</span>`:''}</td>
+      <td class="mono muted">${fmt$(l.tax)}</td>
+      <td class="mono" style="color:var(--green);font-weight:700">+${fmt$(equity(l))}</td>
+      <td><span class="score"><span class="bar"><i style="width:${l.score}%"></i></span>${l.score}</span></td>
+    </tr>`;
+  }).join("");
+  $("#tbody").querySelectorAll("tr").forEach(r=>r.onclick=()=>openDrawer(+r.dataset.id));
+  $("#thead").querySelectorAll("th").forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=k==="days"?1:-1}renderTable()});
+}
+
+/* ============================== outreach timeline (derived) ============================== */
+function outreachFor(l){
+  const d=daysTo(l.sale);
+  const who=(l.owner||"Owner").split(",")[0];
+  const addr=l.address||"your property";
+  const cs=l.caseNumber||l.case||"";
+  const steps=[
+    {when:"Day 1 · 90-day window",what:"Intro letter — \"I can stop this sale\"",ch:"Mail",
+     prev:`Dear ${who} — I see ${addr} has a foreclosure case filed${cs?` (${cs})`:""}. I buy homes in ${l.city||"the area"} and may be able to stop the ${fmtDate(l.sale)} sale and put cash in your pocket. — call me.`},
+    {when:"Day 30 · 60-day window",what:"Follow-up letter + skip-traced call",ch:"Mail + Call"},
+    {when:"Day 60 · 30-day window",what:"\"Sale is set\" urgency letter",ch:"Mail + SMS"},
+    {when:"Day 75 · final push",what:"Cash-offer letter — subject-to / reinstatement",ch:"Hand-delivered"},
+  ];
+  // status by how far along the timeline this lead is
+  return steps.map((s,i)=>{
+    let status="draft";
+    if(l.stage==="auction_imminent"){status=i<3?"sent":"scheduled"}
+    else if(l.stage==="notice_of_sale"){status=i<2?"sent":i===2?"scheduled":"draft"}
+    else if(l.stage==="judgment"){status=i<1?"sent":i===1?"scheduled":"draft"}
+    else{status=i===0?"scheduled":"draft"}
+    return {...s,status};
+  });
+}
+
+/* ============================== RENDER: drawer ============================== */
+function openDrawer(id){
+  const l=LEADS.find(x=>x.id===id);if(!l)return;
+  const S=STAGES[l.stage]||STAGES.lis_pendens;const d=daysTo(l.sale);
+  const steps=outreachFor(l);
+  const conf=l.confidence||"single";
+  const confColor=conf==="single"?"var(--faint)":"var(--green)";
+  const srcChips=(l.sourceLabels||[l.sourceLabels]).filter(Boolean);
+  $("#drawer").innerHTML=`
+    <div class="dh">
+      <button class="x" onclick="closeDrawer()">×</button>
+      <div class="addr">${l.address||"Address gated (notice not yet detailed)"}</div>
+      <div class="ci">${l.city||""}${l.city?", IL ":""}${l.zip||""} · ${l.county||""} County</div>
+      <div class="tags">
+        <span class="stg" style="background:${S.color}22;color:${S.color}">${S.label}</span>
+        <span class="countdown ${countdownClass(d)}" style="font-size:12px">${countdownText(l)}</span>
+        ${l.absentee?'<span class="abs">ABSENTEE OWNER</span>':''}
+        <span class="score" style="margin-left:auto">Lead score <span class="bar" style="width:48px"><i style="width:${l.score}%"></i></span><b style="color:var(--ink)">${l.score}</b></span>
+      </div>
+    </div>
+    <div class="db">
+      <div class="grp">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px">
+          <h3 style="margin:0;flex:1">Deal stage — move it through your pipeline</h3>
+          <button onclick="toggleReachedById(${l.id})" style="font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;cursor:pointer;border:1px solid ${reachedOf(l)?'rgba(51,176,116,.55)':'var(--line)'};background:${reachedOf(l)?'rgba(51,176,116,.16)':'var(--panel-2)'};color:${reachedOf(l)?'var(--green)':'var(--muted)'}">${reachedOf(l)?'✓ Reached out':'☐ Reached out?'}</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${DEAL_STAGES.map(s=>`<button onclick="setDealById(${l.id},'${s.k}')" style="font-size:12px;font-weight:600;padding:7px 11px;border-radius:7px;border:1px solid ${dealStatus(l)===s.k?s.color:'var(--line)'};background:${dealStatus(l)===s.k?s.color+'22':'var(--panel-2)'};color:${dealStatus(l)===s.k?s.color:'var(--muted)'}">${dealStatus(l)===s.k?'● ':''}${s.label}</button>`).join("")}
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="equity-box">
+          <div><div class="l">Estimated equity</div><div class="n">+${fmt$(equity(l))}</div></div>
+          <div class="calc">${fmt$(l.estMarket)} market<br>− ${fmt$(l.estDebt)} est. payoff<br><span style="color:var(--green)">= ${equityPct(l)}% equity</span></div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Cross-confirmation</h3>
+        <div style="background:var(--panel-2);border:1px solid ${conf==='single'?'var(--line)':'rgba(51,176,116,.3)'};border-radius:10px;padding:13px 15px">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">
+            <span style="font-weight:700;color:${confColor};text-transform:capitalize">${conf==='single'?'Single source':conf+' · '+((l.confirmations||1)+(l.recordVerified?1:0))+' sources align'}</span>
+            ${l.conflicts&&l.conflicts.length?`<span style="margin-left:auto;color:var(--amber);font-size:11.5px;font-weight:600">⚠ conflict: ${l.conflicts.map(c=>c.field).join(', ')}</span>`:'<span style="margin-left:auto;color:var(--green);font-size:11.5px">✓ no conflicts</span>'}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${srcChips.map(s=>`<span style="font-size:11px;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:3px 8px;color:var(--ink)">✓ ${s}</span>`).join("")}
+            ${l.recordVerified?'<span style="font-size:11px;background:rgba(51,176,116,.1);border:1px solid rgba(51,176,116,.3);border-radius:5px;padding:3px 8px;color:var(--green)">✓ County assessor (parcel verified)</span>':''}
+          </div>
+          ${l.conflicts&&l.conflicts.length?`<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">${l.conflicts.map(c=>`<div><b style="color:var(--amber)">${c.field}:</b> ${(c.values||[]).join(" vs ")}</div>`).join("")}</div>`:''}
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Foreclosure case</h3>
+        <div class="kv">
+          <div><div class="f">Case number</div><div class="val mono">${l.caseNumber||l.case||"—"}</div></div>
+          <div><div class="f">Stage</div><div class="val">${S.label}</div></div>
+          <div class="full"><div class="f">Court</div><div class="val">${l.court||"—"}</div></div>
+          <div><div class="f">Plaintiff / lender</div><div class="val">${l.lender||"—"}</div></div>
+          <div><div class="f">Foreclosure attorney</div><div class="val">${l.attorney||"—"}</div></div>
+          <div><div class="f">Filed (lis pendens)</div><div class="val mono">${fmtDate(l.filing)}</div></div>
+          <div><div class="f">Judgment entered</div><div class="val mono">${fmtDate(l.judgment)}</div></div>
+          <div><div class="f">Sale date</div><div class="val mono" style="color:${d!=null&&d<=30?'var(--red)':'var(--ink)'}">${fmtDate(l.sale)}</div></div>
+          <div><div class="f">Opening bid</div><div class="val mono">${fmt$(l.openingBid)}</div></div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Property record · county assessor</h3>
+        <div class="kv">
+          <div><div class="f">PIN / parcel</div><div class="val mono">${l.pin||"—"}</div></div>
+          <div><div class="f">Owner of record</div><div class="val">${l.owner||"—"}</div></div>
+          <div class="full"><div class="f">Mailing address ${l.absentee?'<span class="abs">≠ property = absentee</span>':''}</div><div class="val" style="font-size:12.5px">${l.mailing||"—"}</div></div>
+          <div><div class="f">Beds / baths</div><div class="val mono">${l.beds??"—"} bd / ${l.baths??"—"} ba</div></div>
+          <div><div class="f">Building</div><div class="val mono">${l.sqft?l.sqft.toLocaleString()+" sqft":"—"}${l.year?" · "+l.year:""}</div></div>
+          <div><div class="f">Assessed value${l.taxYear?" ("+l.taxYear+")":""}</div><div class="val mono">${fmt$(l.assessed)}</div></div>
+          <div><div class="f">Property taxes${l.taxYear?" ("+l.taxYear+")":""}</div><div class="val mono">${l.tax?fmt$(l.tax)+"/yr":"—"}</div></div>
+          <div><div class="f">Last sold</div><div class="val mono">${fmtDate(l.lastSaleDate)}</div></div>
+          <div><div class="f">Last sale price</div><div class="val mono">${fmt$(l.lastSalePrice)}</div></div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Owner contact · skip trace</h3>
+        <div id="contactBox"></div>
+      </div>
+
+      <div class="grp">
+        <h3>Outreach sequence · auto-drafted</h3>
+        <div class="timeline">
+          ${steps.map(s=>`<div class="step ${s.status}">
+            <div class="node"></div>
+            <div><span class="when">${s.when} · ${s.ch}</span></div>
+            <div class="what">${s.what}<span class="st st-${s.status}">${s.status.toUpperCase()}</span></div>
+            ${s.prev?`<div class="prev">"${s.prev}"</div>`:""}
+          </div>`).join("")}
+        </div>
+      </div>
+    </div>`;
+  renderContact(l,false);
+  $("#scrim").classList.add("on");$("#drawer").classList.add("on");
+}
+function renderContact(l,revealed){
+  const box=$("#contactBox");if(!box)return;
+  if(!revealed){
+    box.innerHTML=`<div class="contact-locked">
+      <div class="t">Owner phone, email & mailing not yet pulled</div>
+      <button class="btn red" id="skipBtn">⚡ Skip trace this owner</button>
+      <div class="src-tag">via BatchData API · ~$0.12 · ~76% right-party hit rate</div>
+    </div>`;
+    const b=$("#skipBtn");if(b)b.onclick=()=>renderContact(l,true);
+  }else{
+    box.innerHTML=`<div class="contact-revealed">
+      <div class="r"><span class="ic">📞</span><span class="v">${l.phone||"no number found"}</span></div>
+      <div class="r"><span class="ic">✉️</span><span class="v">${l.email||"no email found"}</span></div>
+      <div class="r"><span class="ic">🏠</span><span class="v" style="font-size:12px">${l.mailing}</span></div>
+      <div class="src-tag">Skip-traced just now · BatchData · cached for re-use</div>
+    </div>`;
+  }
+}
+function closeDrawer(){$("#scrim").classList.remove("on");$("#drawer").classList.remove("on")}
+
+/* ============================== CSV export ============================== */
+function exportCsv(){
+  const cols=["address","city","zip","county","pin","owner","mailing","absentee","stage","case","court","lender","attorney","filing","judgment","sale","daysToSale","beds","baths","sqft","year","assessed","tax","taxYear","lastSaleDate","lastSalePrice","estMarket","estDebt","estEquity","openingBid","leadScore","phone","email"];
+  const rows=filtered().map(l=>({...l,daysToSale:daysTo(l.sale),estEquity:equity(l),leadScore:l.score}));
+  const esc=v=>{v=v==null?"":String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const csv=[cols.join(","),...rows.map(r=>cols.map(c=>esc(r[c==="leadScore"?"score":c]??r[c])).join(","))].join("\n");
+  const blob=new Blob([csv],{type:"text/csv"});const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="redline_preforeclosure_leads.csv";a.click();
+}
+
+/* ============================== LIVE SCRAPE (server-side job + progress) ====== */
+let pollTimer=null, loadedJobId=null;
+const fmtMs=ms=>ms==null?"—":ms<1000?"0s":ms<60000?Math.round(ms/1000)+"s":Math.floor(ms/60000)+"m "+Math.round(ms%60000/1000)+"s";
+
+async function liveScrape(){
+  const btn=$("#scrapeBtn");
+  btn.disabled=true; btn.textContent="⏳ Scraping…";
+  try{
+    const res=await fetch("/api/scrape/start");
+    if(!res.ok) throw new Error("server "+res.status);
+    applyStatus(await res.json());
+    startPolling();
+  }catch(e){ serverDown(e); btn.disabled=false; btn.textContent="⚡ Live Scrape"; }
+}
+
+function startPolling(){ stopPolling(); pollTimer=setInterval(pollStatus,800); }
+function stopPolling(){ if(pollTimer){clearInterval(pollTimer);pollTimer=null;} }
+
+async function pollStatus(){
+  try{ const r=await fetch("/api/scrape/status"); if(!r.ok)return; applyStatus(await r.json()); }
+  catch(e){ /* tab asleep / transient — keep trying */ }
+}
+
+function applyStatus(d){
+  if(!d||d.state==="idle"){ return; }
+  const btn=$("#scrapeBtn"), badge=$("#dataBadge");
+  renderProgress(d);
+  renderSources(d.sources||[], d.state==="running");
+  if(d.state==="running"){
+    btn.disabled=true; btn.textContent="⏳ "+Math.round((d.fraction||0)*100)+"%";
+    badge.textContent="● SCRAPING — "+Math.round((d.fraction||0)*100)+"%  ·  ~"+fmtMs(d.etaMs)+" left";
+    badge.style.cssText=badgeCss("var(--amber)");
+  } else if(d.state==="done"){
+    stopPolling(); btn.disabled=false; btn.textContent="⚡ Live Scrape";
+    if(d.leads && d.id!==loadedJobId){
+      loadedJobId=d.id; LEADS=d.leads; lastScrapedAt=d.scrapedAt;
+      activeCounty="All"; activeStage=null; query=""; if($("#q"))$("#q").value="";
+      renderAll();
+    }
+    setLiveBadge({kept:d.kept,leads:d.leads,lastRunAt:Date.now(),nextRunAt:d.nextRunAt},false);
+    $("#syncTxt").textContent=(d.leads?d.leads.length:0)+" leads · "+(d.rawTotal||0)+" scanned · just now";
+  } else if(d.state==="error"){
+    stopPolling(); btn.disabled=false; btn.textContent="⚡ Live Scrape";
+    badge.textContent="● scrape error"; badge.style.cssText=badgeCss("var(--red)");
+    renderSources([{label:"Scrape failed",kind:"trigger",status:"error",count:0,note:d.error||""}],false);
+  }
+}
+const badgeCss=c=>`margin-left:auto;background:${c}22;color:${c};border:1px solid ${c}66;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;letter-spacing:.4px`;
+
+function serverDown(e){
+  const badge=$("#dataBadge");
+  badge.textContent="● engine not running"; badge.style.cssText=badgeCss("var(--red)");
+  renderSources([{label:"Couldn't reach the engine",kind:"trigger",status:"error",count:0,note:"In Terminal:  cd ~/Desktop/preforeclosure-engine && npm start  — then open http://localhost:8787"}],false);
+}
+
+/* prominent progress bar under the header */
+function renderProgress(d){
+  let bar=$("#progBar");
+  if(!bar){ bar=document.createElement("div"); bar.id="progBar";
+    bar.style.cssText="position:sticky;top:0;z-index:25;background:var(--panel);border-bottom:1px solid var(--line);padding:11px 22px";
+    document.querySelector("header").after(bar);
+  }
+  const pct=Math.round((d.fraction||0)*100);
+  const done=d.state==="done";
+  bar.style.display="block";
+  bar.innerHTML=`
+    <div style="max-width:1480px;margin:0 auto">
+      <div style="display:flex;align-items:center;gap:12px;font-size:12.5px;margin-bottom:7px">
+        <span style="font-weight:700;color:${done?'var(--green)':'var(--amber)'}">${done?'✓ Live data ready':'⚡ Scraping free public sources…'}</span>
+        <span style="color:var(--muted)">${d.phaseText||""}</span>
+        <span style="margin-left:auto;color:var(--faint);font-family:var(--mono)">${pct}% · elapsed ${fmtMs(d.elapsedMs)}${done?'':` · ~${fmtMs(d.etaMs)} left`}</span>
+        ${done?'<button onclick="document.getElementById(\'progBar\').style.display=\'none\'" style="color:var(--muted);font-size:15px;margin-left:6px">×</button>':''}
+      </div>
+      <div style="height:8px;border-radius:6px;background:var(--panel-2);overflow:hidden">
+        <div style="height:100%;width:${pct}%;border-radius:6px;background:linear-gradient(90deg,var(--amber),var(--green));transition:width .4s ease"></div>
+      </div>
+      <div style="display:flex;gap:14px;margin-top:7px;font-size:11px;color:var(--faint)">
+        <span>Trigger feeds ${d.triggersDone}/${d.triggersTotal}</span>
+        <span>·</span><span>County records ${d.enrichDone}/${d.enrichTotal}</span>
+        <span>·</span><span>${d.rawTotal!=null?d.rawTotal+" foreclosures scanned":"scanning…"}</span>
+        <span style="margin-left:auto">you can switch tabs — this keeps running</span>
+      </div>
+    </div>`;
+}
+
+function renderSources(sources,running){
+  let p=$("#srcPanel");
+  if(!p){p=document.createElement("div");p.id="srcPanel";
+    p.style.cssText="position:fixed;right:18px;bottom:18px;width:330px;max-height:62vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:60;font-size:12px";
+    document.body.appendChild(p);}
+  const color=s=>s==="ok"?"var(--green)":s==="partial"?"var(--amber)":s==="blocked"?"var(--blue)":"var(--red)";
+  const icon=s=>s==="ok"?"✓":s==="partial"?"◐":s==="blocked"?"🔒":"✗";
+  const trig=sources.filter(s=>s.kind!=="enrich"), enr=sources.filter(s=>s.kind==="enrich");
+  const row=s=>`<div style="display:flex;gap:9px;padding:8px 12px;border-top:1px solid var(--line);align-items:flex-start">
+      <span style="color:${color(s.status)};font-weight:700">${icon(s.status)}</span>
+      <div style="flex:1"><div style="font-weight:600;color:var(--ink)">${s.label}</div>
+        ${s.note?`<div style="color:var(--faint);font-size:11px;margin-top:1px">${s.note}</div>`:""}</div>
+      <span class="mono" style="color:${color(s.status)};font-weight:700">${s.count??""}</span></div>`;
+  p.innerHTML=`<div style="display:flex;align-items:center;padding:11px 12px;font-weight:700">
+      <span style="color:var(--red)">⚡</span>&nbsp;Live scrape · sources${running?' <span style="color:var(--amber);font-weight:600;font-size:11px">· running…</span>':''}
+      <button onclick="this.closest('#srcPanel').remove()" style="margin-left:auto;color:var(--muted);font-size:16px">×</button></div>
+    <div style="padding:3px 12px 6px;color:var(--faint);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px">Trigger feeds (who/when)</div>
+    ${trig.map(row).join("")||'<div style="padding:8px 12px;color:var(--faint)">none</div>'}
+    ${enr.length?`<div style="padding:9px 12px 6px;color:var(--faint);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px">Enrichment (property record)</div>${enr.map(row).join("")}`:""}`;
+}
+
+/* ============================== boot ============================== */
+function renderAll(){renderPills();renderKpis();renderBoard();renderTable()}
+$("#brandName").textContent=BRAND;
+document.title=BRAND+" — Pre-Foreclosure Acquisition Desk";
+$("#q").oninput=e=>{query=e.target.value;renderAll()};
+$("#exportBtn").onclick=exportCsv;
+$("#scrapeBtn").onclick=liveScrape;
+$("#modeForeclosure").onclick=()=>setBoardMode("foreclosure");
+$("#modeDeal").onclick=()=>setBoardMode("deal");
+$("#scrim").onclick=closeDrawer;
+document.onkeydown=e=>{if(e.key==="Escape")closeDrawer()};
+renderAll();
+
+// time helpers for the auto-refresh schedule
+const fmtAgo=ms=>{if(ms==null)return"";const s=(Date.now()-ms)/1000;if(s<90)return"just now";if(s<5400)return Math.round(s/60)+"m ago";if(s<172800)return Math.round(s/3600)+"h ago";return Math.round(s/86400)+"d ago";};
+const fmtIn=ms=>{if(ms==null)return"";const s=(ms-Date.now())/1000;if(s<=0)return"due now";if(s<5400)return"in "+Math.round(s/60)+"m";if(s<172800)return"in "+Math.round(s/3600)+"h";return"in "+Math.round(s/86400)+"d";};
+function setLiveBadge(d,running){
+  const badge=$("#dataBadge");
+  const upd=d.lastRunAt?("updated "+fmtAgo(d.lastRunAt)):"";
+  const nxt=d.nextRunAt?(" · next "+fmtIn(d.nextRunAt)):"";
+  badge.textContent=(running?"● SCRAPING":"● LIVE")+" — "+(d.kept||(d.leads?d.leads.length:0))+" leads"+(upd?" · "+upd:"")+nxt;
+  badge.style.cssText=badgeCss(running?"var(--amber)":"var(--green)");
+}
+
+// On open: auto-load the latest saved leads (the 24h job populates them), and if a
+// scrape is currently running, attach the progress bar. Also refresh the instant
+// you return to this tab. The server keeps scraping regardless of this tab.
+let lastScrapedAt=null;
+async function init(){
+  try{
+    const r=await fetch("/api/leads"); if(r.ok){ const d=await r.json();
+      if(d.state==="ready" && d.leads){
+        LEADS=d.leads; loadedJobId="loaded"; lastScrapedAt=d.scrapedAt; renderAll(); setLiveBadge(d,d.scraping);
+        $("#syncTxt").textContent=d.leads.length+" leads · "+(d.lastRunAt?fmtAgo(d.lastRunAt):"auto-updated");
+        renderSources(d.sources||[],false);
+      }
+    }
+  }catch(e){ /* offline file:// — stays on bundled sample data */ }
+  // attach to an in-flight job (first-run on boot, or a manual/auto scrape)
+  try{ const s=await fetch("/api/scrape/status"); if(s.ok){ const d=await s.json();
+    if(d.state==="running"){ applyStatus(d); startPolling(); }
+  }}catch(e){}
+  // LIVE: every 45s, pull the latest. If the hourly scrape produced new data,
+  // swap it in and re-render so the pipeline MOVES on its own. If a scrape is
+  // running server-side, show its progress bar even if you didn't click.
+  setInterval(liveTick,45000);
+}
+function liveTick(){
+  fetch("/api/leads").then(r=>r.ok&&r.json()).then(d=>{
+    if(!d)return;
+    if(d.scraping && !pollTimer) startPolling();           // show the auto-scrape live
+    if(d.state==="ready"){
+      if(d.scrapedAt && d.scrapedAt!==lastScrapedAt && !pollTimer){
+        lastScrapedAt=d.scrapedAt; LEADS=d.leads; renderAll(); renderSources(d.sources||[],false); // pipeline moves
+      }
+      setLiveBadge(d,d.scraping);
+    }
+  }).catch(()=>{});
+}
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden){pollStatus();liveTick();} });
+window.addEventListener("focus",()=>{pollStatus();liveTick();});
+init();
+</script>
+</body>
+</html>

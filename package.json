@@ -1,0 +1,16 @@
+{
+  "name": "preforeclosure-engine",
+  "version": "0.1.0",
+  "description": "Live pre-foreclosure scraper + CRM for IL counties. Click Live Scrape -> runs every county collector -> populates the CRM.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "scrape": "node src/cli.js",
+    "vince": "node vince-track.js",
+    "vince:once": "node vince-track.js --once"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
