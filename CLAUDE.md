@@ -141,3 +141,10 @@ future Elmhurst instance.
   gaps: equity fills only on assessor address-match; TJSC opening bids TBD until ~1 day
   pre-sale; PNI street address/sale-date gated to a free Details.aspx account.
 - 2026-06-07: Phase 0 — spec + offline demo.
+
+## Deploying (for claude-box / phone sessions)
+- Live service = Railway project `vince-tracker` (workspace "acuntel's Projects").
+- Deploy from this repo's root: `railway link -p vince-tracker` once, then `railway up --detach`.
+- ⚠️ ONE instance only: never run a second copy of the bot locally while the Railway one is live (Telegram gives 409 conflicts). A normal redeploy (replace) is fine.
+- Secrets come from Railway service variables, never from files in this repo.
+- The web page is served by server.js from demo/index.html.
