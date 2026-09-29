@@ -156,11 +156,20 @@ export async function enrich(lead = {}) {
     let feats = await queryDuPage(where, 10);
     // Fall back to a county-wide match if the city filter excluded everything
     // (DuPage PROPCITY can be a postal city that differs from the lead's city).
+    // The fallback must still be the same house: same property zip when the lead
+    // has one, else the only candidate. ("610 Catalpa Ave, Wood Dale" once matched
+    // 610 N Catalpa in Itasca and took that house's owner and value.)
     if (!feats.length && city) {
-      feats = await queryDuPage(
+      const all = await queryDuPage(
         `PROPSTNAME LIKE '${sqlEscape(number)} %${sqlEscape(streetBase)}%'`,
         10,
       );
+      const zip = String(lead.zip || "").match(/\d{5}/)?.[0];
+      feats = zip
+        ? all.filter((a) => clean(a.PROPZIP).startsWith(zip))
+        : all.length === 1
+          ? all
+          : [];
     }
     if (!feats.length) return {};
 

@@ -1,0 +1,57 @@
+  ✓ Lake County recorder — recorded LIS PENDENS (Kofile): 0 (blocked)
+  ✓ McHenry County Sheriff — current foreclosure list (PDF): 0 (blocked)
+  ✓ DuPage County Sheriff - upcoming foreclosure sales: 85 (ok)
+  ✓ Intercounty Judicial Sales Corp — sales (statewide): 563 (ok)
+  ✓ Kane County Sheriff — upcoming foreclosure sales (PDF): 45 (ok)
+  ✓ The Judicial Sales Corp — upcoming sales (multi-county): 592 (ok)
+  ✓ Public Notice Illinois - probate claims notices (estates): 118 (ok)
+  ✓ Lake County Sheriff — CivilView foreclosure sales: 95 (ok)
+  ✓ Public Notice Illinois — statewide foreclosure notices: 1000 (ok)
+  ✓ Will County Recorder — recorded LIS PENDENS (Fidlar AvaWeb): 716 (ok)
+  ✓ Cook County Clerk — recorded LIS PENDENS (CRS): 0 (blocked)
+DRY RUN (live scan, as of 2026-09-29, state /private/tmp/claude-501/-Users-bradyschwartz/e5f29a79-0384-4683-8546-72da04e56eeb/scratchpad/state/dry.json, read only)
+pool 1654 leads, 40 pass every gate
+gate drops: no_address 567, no_gap 470, no_owner 161, weak_value 92, short_runway 71, low_ev 71, already_sent 61, small_gap 51, entity_owner 37, dead_status 26, out_of_radius 6, suspect_value 1
+pool health: DEGRADED (The recorder-cook feed is blocked.)
+  the live digest would defer until a healthy pass or the 14:00 cutoff
+
+#1 PICK  347 Galway Court, Bloomingdale (DuPage), owner ESTATE OF PATRICIA M. CERAMI
+   EV $171k | equity $309k (40%) | market $773k [assessor] | payoff $464k [probate estimate] | conf low | pStage 0.92 pContact 1.00 pConf 0.60 pProx 1.00 | no sale date | 8.5 mi | stage probate estate
+   > Worth about $773,000, owes about $464,000 (an assumed payoff, since no loan figure is on record), so about $309,000 of equity (40 percent).
+   > The value is the county assessor's figure.
+   > This is a probate estate with no foreclosure case.
+   > It is 8.5 miles from the office.
+   > The owner appears to have died, since the records name an estate or heirs. Heirs usually want a fast, simple sale.
+   > No loan figure is on record for this estate, so we assume about 40 percent equity to rank it. Confirm the payoff before making an offer.
+   > Our confidence in the numbers is low.
+#2      101 HOWE TERRACE, BARRINGTON (Cook), owner PAUL TRENT
+   EV $154k | equity $366k (53%) | market $690k [comps] | payoff $324k [last sale] | conf low | pStage 1.00 pContact 1.00 pConf 0.60 pProx 0.70 | runway 77d | 20.7 mi | stage sale_22_90
+#3      801 79th St, Darien (DuPage), owner SHANA R WILLIAMS
+   EV $140k | equity $259k (55%) | market $473k [comps] | payoff $213k [last sale] | conf low | pStage 1.00 pContact 1.00 pConf 0.60 pProx 0.90 | runway 77d | 10.6 mi | stage sale_22_90
+#4      313 APPLE RIVER DR, NAPERVILLE (Will), owner SCHULTZ BRADLEY J
+   EV $118k | equity $273k (36%) | market $750k [comps] | payoff $477k [last sale] | conf low | pStage 0.80 pContact 1.00 pConf 0.60 pProx 0.90 | no sale date | 15 mi | stage lis_pendens
+#5      1280 OAK HILL ROAD, LAKE BARRINGTON (Lake), owner WITAS
+   EV $97k | equity $230k (48%) | market $482k [comps] | payoff $252k [last sale] | conf low | pStage 1.00 pContact 1.00 pConf 0.60 pProx 0.70 | runway 49d | 20.7 mi | stage sale_22_90
+#6      1 PAMPAS COURT, BOLINGBROOK (Will), owner PATTERSON-TROTTER ALECCIA S
+   EV $95k | equity $221k (45%) | market $496k [comps] | payoff $275k [last sale] | conf low | pStage 0.80 pContact 1.00 pConf 0.60 pProx 0.90 | no sale date | 18.4 mi | stage lis_pendens
+near miss: 4136 Douglas Rd, Downers Grove [short_runway] The sale is only 7 days away, which is less than the 10 days Vince needs to act.
+
+── message that would be sent (not sent: dry run) ──
+👤 ESTATE OF PATRICIA M. CERAMI
+☀️ Today's lead: 347 Galway Court, Bloomingdale (DuPage County)
+
+Why this one:
+Worth about $773,000, owes about $464,000 (an assumed payoff, since no loan figure is on record), so about $309,000 of equity (40 percent).
+The value is the county assessor's figure.
+This is a probate estate with no foreclosure case.
+It is 8.5 miles from the office.
+The owner appears to have died, since the records name an estate or heirs. Heirs usually want a fast, simple sale.
+No loan figure is on record for this estate, so we assume about 40 percent equity to rank it. Confirm the payoff before making an offer.
+Our confidence in the numbers is low.
+📞 Put the name above into your app to get the number.
+Case 2026PR000566.
+🔗 https://www.publicnoticeillinois.com/Details.aspx?SID=xuerghfg3hnkhykkv5l53bhj&ID=3310609
+
+Tap a button after you call. If the lead is bad, tap the reason so tomorrow's pick gets better.
+
+snapshot: /private/tmp/claude-501/-Users-bradyschwartz/e5f29a79-0384-4683-8546-72da04e56eeb/scratchpad/state/picks/2026-09-29.dryrun.json

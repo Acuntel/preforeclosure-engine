@@ -1,0 +1,35 @@
+process.env.PROFILE="vince";
+import fs from "node:fs";
+const S=process.argv[2];
+const ROOT="/Users/bradyschwartz/Desktop/preforeclosure-engine";
+const {daysTo}=await import(ROOT+"/src/score.js");
+const st=JSON.parse(fs.readFileSync(S+"/prod-state.json"));
+const norm=a=>String(a||"").toUpperCase().split(",")[0].replace(/[.]/g,"").replace(/\s+/g," ").trim();
+const cache={};
+const agg={n:0,found:0,gapUnknown:0,gapNeg:0,debtGuess:0,hardCost:0,comps80:0,compsLt5:0,sale0to3:0,salePast:0,soldStatus:0,absFP:0,noOwner:0,phone:0,far:0,q100:0,condo:0};
+const rows=[];
+for(const [oid,o] of Object.entries(st.outcomes)){
+  agg.n++;
+  const f=`${S}/arch/leads-vince-${o.date}.json`;
+  if(!fs.existsSync(f))continue;
+  cache[o.date]=cache[o.date]||JSON.parse(fs.readFileSync(f)).leads;
+  const a=norm(o.address);
+  const l=cache[o.date].find(x=>norm([x.address,x.city].filter(Boolean).join(", "))===a||norm(x.address)===a);
+  if(!l)continue; agg.found++;
+  const saleD=l.sale?Math.round((new Date(l.sale+"T00:00:00")-new Date(o.date+"T10:00:00"))/864e5):null;
+  if(l.valueGap==null)agg.gapUnknown++; else if(l.valueGap<=0)agg.gapNeg++;
+  if(l.valueBasis&&/est\. cost/.test(l.valueBasis))agg.debtGuess++;
+  if(l.valueBasis&&/opening bid|asking|mortgage/.test(l.valueBasis))agg.hardCost++;
+  if(l.compsCount===80)agg.comps80++; if(l.compsCount&&l.compsCount<5)agg.compsLt5++;
+  if(saleD!=null&&saleD>=0&&saleD<=3)agg.sale0to3++; if(saleD!=null&&saleD<0)agg.salePast++;
+  if(l.status&&/plaintiff|third|cancel|sold/i.test(l.status))agg.soldStatus++;
+  const hn=s=>String(s||"").match(/^\s*(\d+)/)?.[1];
+  if(l.absentee&&l.mailing&&hn(l.mailing)===hn(l.address))agg.absFP++;
+  if(!l.owner)agg.noOwner++; if(l.phone)agg.phone++; if((l.distanceMi??99)>20)agg.far++;
+  if(o.quality>=100)agg.q100++;
+  if(/\b(UNIT|APT|#)\s*\w+|\b\d+[A-Z]$|\s[A-Z]\d$/i.test(l.address))agg.condo++;
+  rows.push({oid,date:o.date,q:o.quality,addr:o.address,saleD,status:l.status,gap:l.valueGap,pct:l.valueGapPct,conf:l.valueConfidence,basis:l.valueBasis,cc:l.compsCount,mi:l.distanceMi});
+}
+console.log(agg);
+fs.writeFileSync(S+"/rank/sent-rows.json",JSON.stringify(rows,null,1));
+for(const r of rows.filter(r=>r.saleD!=null&&r.saleD<=3).slice(0,12))console.log(r);

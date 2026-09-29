@@ -31,7 +31,13 @@ const LOOKBACK_DAYS = Number(process.env.COOK_LP_LOOKBACK_DAYS || 45);
 // LISF = "LIS PENDENS FORECLOSURE" (the live type — plain LISP returned 0 across
 // probed months). AMLF amendments excluded: they re-notice existing suits.
 const DOC_TYPES = ["LISF"];
-const MAX_PAGES = 15;
+const MAX_PAGES = 25;
+// CRS returns at most 1000 rows per search (10 pages of 100; a 75-day window came
+// back at exactly 1000 on 2026-09-28 while 14-day chunks of the same span gave
+// 1612). The 45-day window is about 750 today, under the cap, but search in date
+// chunks so volume growth can never silently truncate the pool.
+const CHUNK_DAYS = Number(process.env.COOK_LP_CHUNK_DAYS || 14);
+const CRS_CAP = 1000;
 const COURT = "Cook County Circuit Court (Chancery) — recorded notice";
 
 const mmddyyyy = (d) =>
@@ -177,18 +183,29 @@ export async function collect() {
     };
 
   const today = new Date();
-  const from = new Date(today.getTime() - LOOKBACK_DAYS * 86400e3);
+  const windows = [];
+  const totalDays = LOOKBACK_DAYS + 1; // today back to today-LOOKBACK, inclusive
+  for (let back = 0; back < totalDays; back += CHUNK_DAYS) {
+    const to = new Date(today.getTime() - back * 86400e3);
+    const span = Math.min(CHUNK_DAYS, totalDays - back);
+    // inclusive dates: this window starts the day after the next one ends
+    windows.push({ to, from: new Date(to.getTime() - (span - 1) * 86400e3) });
+  }
   const byKey = new Map();
   let failures = 0;
   let noDocs = 0;
+  let capped = 0;
+  const searches = DOC_TYPES.flatMap((docType) =>
+    windows.map((w) => ({ docType, ...w })),
+  );
 
-  for (const docType of DOC_TYPES) {
+  for (const { docType, from, to } of searches) {
     try {
       const body = new URLSearchParams({
         __RequestVerificationToken: token,
         DocumentType: docType,
         RecordedFromDate: mmddyyyy(from),
-        RecordedToDate: mmddyyyy(today),
+        RecordedToDate: mmddyyyy(to),
         submitButton: "search",
       }).toString();
       const post = await fetchRaw(
@@ -222,6 +239,7 @@ export async function collect() {
         );
         rows = rows.concat(parseRows(part));
       }
+      if (rows.length >= CRS_CAP) capped++;
       for (const lead of rows) {
         const key = lead.docNumber || `${lead.pin}|${lead.filing}`;
         if (!byKey.has(key)) byKey.set(key, lead);
@@ -239,7 +257,7 @@ export async function collect() {
     if (failures)
       return {
         status: "blocked",
-        note: `CRS search flow failed for ${failures}/${DOC_TYPES.length} doc type(s) — token/cookie or layout change likely`,
+        note: `CRS search flow failed for ${failures}/${searches.length} search(es) — token/cookie or layout change likely`,
         leads: [],
       };
     return {
@@ -252,7 +270,7 @@ export async function collect() {
   const withAddr = leads.filter((l) => l.address).length;
   return {
     status: failures ? "partial" : "ok",
-    note: `${leads.length} recorded LIS PENDENS FORECLOSURE in Cook over last ${LOOKBACK_DAYS}d (${withAddr} with street address+city inline, PIN on ${leads.filter((l) => l.pin).length}; index lags recording ~1-2wk)`,
+    note: `${leads.length} recorded LIS PENDENS FORECLOSURE in Cook over last ${LOOKBACK_DAYS}d in ${searches.length} date chunks${capped ? ` (${capped} chunk(s) hit the ${CRS_CAP}-row CRS cap; lower COOK_LP_CHUNK_DAYS)` : ""}${failures ? `, ${failures} chunk(s) failed` : ""} (${withAddr} with street address+city inline, PIN on ${leads.filter((l) => l.pin).length}; index lags recording ~1-2wk)`,
     leads,
   };
 }

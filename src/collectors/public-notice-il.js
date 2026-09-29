@@ -51,7 +51,8 @@ const titleCase = (s) =>
 const fixCounty = (c) => {
   if (!c) return null;
   const t = titleCase(c).replace(/\s+/g, " ").trim();
-  return CASE_FIX[t] || t;
+  // "Du Page" / "Mc Henry" / "St. Clair" -> squash spaces and dots, then title-case
+  return CASE_FIX[titleCase(t.replace(/[\s.]/g, ""))] || t;
 };
 
 // Circuit numbers in IL notices are spelled out ("EIGHTEENTH JUDICIAL CIRCUIT").

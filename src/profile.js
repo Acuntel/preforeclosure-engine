@@ -4,13 +4,13 @@
 // and whether new-lead Telegram pings fire.
 //
 //   PROFILE=z      -> Winnebago + Boone investor "Z" (the original REDLINE)
-//   PROFILE=vince  -> Vince: Cook + the collar counties, focused ~20mi around
+//   PROFILE=vince  -> Vince: Cook + the collar counties, within 30mi of
 //                     his Elmhurst office, value-gap ranked, pings via
 //                     @BradyVinceCook_bot
 //
 // Z's instance is untouched by the Vince work — separate ports, data files,
 // state, and county sets.
-import { leadDistanceMi, RADIUS_MI } from "./proximity.js";
+import { leadDistanceMi, locationPrecision, RADIUS_MI } from "./proximity.js";
 
 const PROFILES = {
   z: {
@@ -40,8 +40,8 @@ const PROFILES = {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
-    // Cook is huge — by default keep suburbs within VINCE_RADIUS_MI (20) of the
-    // Elmhurst office, Chicago proper excluded ("keeps it in pretty good areas").
+    // Every county is held to VINCE_RADIUS_MI (default 30, D2 2026-09-28) of the
+    // Elmhurst office. Cook also drops Chicago proper ("keeps it in pretty good areas").
     // VINCE_COOK_MUNIS pins an explicit suburb whitelist instead; "ALL" opens the
     // whole county including Chicago.
     cookMunis: !process.env.VINCE_COOK_MUNIS
@@ -58,13 +58,14 @@ const PROFILES = {
       .split(",")
       .map((s) => s.trim().toUpperCase())
       .filter(Boolean),
-    // Triggers across metro counties: DuPage recorder LP (earliest) + statewide
-    // judicial-sale feeds + county sheriff lists + Lake/Will recorder LP.
+    // Triggers across metro counties: county sheriff lists (DuPage OCV feed first,
+    // Vince's home county) + probate claims notices via Public Notice IL + the
+    // statewide judicial-sale feeds + Lake/Will/Cook recorder lis pendens.
+    // Retired 2026-09-28: probate-dailyherald (Cloudflare wall), chicago-violations
+    // (0 in scope), craigslist-fsbo and recorder-dupage (headed browser, not on Railway).
     triggers: [
-      "probate-dailyherald", // Vince's #1 signal — dead-owner / heir estates
-      "chicago-violations", // dilapidated / distressed houses (code violations)
-      "craigslist-fsbo", // for-sale-by-owner (asking price = the cost)
-      "recorder-dupage",
+      "dupage-sheriff", // DuPage sheriff sales (free OCV JSON feed)
+      "probate-pni", // probate claims notices via Public Notice IL
       "tjsc",
       "intercounty",
       "public-notice-il",
@@ -76,8 +77,12 @@ const PROFILES = {
       "kane-sheriff",
       "mchenry-sheriff",
     ],
+    // radius gate for EVERY county (was Cook only; see inScope)
+    radius: true,
     ping: true,
-    skiptrace: true,
+    // D6 (2026-09-28): no phone lookups. The card carries name + address; Vince
+    // uses Forewarn for the phone.
+    skiptrace: false,
     valueGap: true,
     leadsFile: "leads-vince.json",
     stateFile: process.env.VINCE_STATE_FILE || ".vince-state.json",
@@ -86,26 +91,28 @@ const PROFILES = {
 
 export const PROFILE = PROFILES[process.env.PROFILE || "z"] || PROFILES.z;
 
-// County keep-test for the active profile. For Cook under the Vince profile,
-// keep suburbs within the office radius (default) or the configured whitelist;
-// Chicago proper only enters via VINCE_COOK_MUNIS=ALL.
+// County keep-test for the active profile. Under Vince, every county is held to
+// the office radius and Cook also drops Chicago proper (or uses the configured
+// whitelist). A lead located only by its county centroid is kept here so the
+// assessor enrichment can resolve its city; pick.js enforces the radius on the
+// enriched record.
 export function inScope(lead) {
   const county = lead.county;
   if (!PROFILE.target.includes(county)) return false;
+  const city = String(lead.city || "").toUpperCase();
   if (PROFILE.excludeCities && PROFILE.excludeCities.length) {
-    const city = String(lead.city || "").toUpperCase();
     if (PROFILE.excludeCities.some((m) => city.includes(m))) return false;
   }
   if (PROFILE.cookMunis && county === "Cook") {
-    const city = String(lead.city || "").toUpperCase();
-    if (PROFILE.cookMunis === "radius") {
-      if (city.includes("CHICAGO")) return false;
-      const mi = leadDistanceMi(lead);
-      return mi != null && mi <= RADIUS_MI;
-    }
-    return PROFILE.cookMunis.some((m) => city.includes(m));
+    if (PROFILE.cookMunis !== "radius")
+      return PROFILE.cookMunis.some((m) => city.includes(m));
+    if (city.includes("CHICAGO") && !/CHICAGO (HEIGHTS|RIDGE)/.test(city))
+      return false;
   }
-  return true;
+  if (!PROFILE.radius) return true;
+  if (locationPrecision(lead) === "county") return true;
+  const mi = leadDistanceMi(lead);
+  return mi != null && mi <= RADIUS_MI;
 }
 
 // Priority index for sorting (home turf first).

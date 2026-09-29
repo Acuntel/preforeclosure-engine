@@ -1,0 +1,80 @@
+# Live dry-run, final code. Started Mon Sep 28 17:26:03 PDT 2026, ~18 min. Node 20.20.2, PROFILE=vince VINCE_PING_OFF=1 VINCE_EMAIL_OFF=1,
+# VINCE_STATE_FILE=/private/tmp/claude-501/-Users-bradyschwartz/e5f29a79-0384-4683-8546-72da04e56eeb/scratchpad/state/int-dry-state.json (copy of prod-archives/vince-state-2026-09-28.json), VINCE_ARCHIVE_DIR unset, send-guard preload (blocks+logs telegram/smtp/mail).
+# Note: MyDec (data.illinois.gov) had DNS SERVFAIL for part of this evening; it recovered during this run (health ok).
+# An earlier run at 16:50 (pre-fix code) hit the outage: comps 25%, health DEGRADED, will-sheriff never reported, 9 eligible, pick 347 Galway Ct (probate estimate).
+  ✓ Lake County recorder — recorded LIS PENDENS (Kofile): 0 (blocked)
+  ✓ McHenry County Sheriff — current foreclosure list (PDF): 0 (blocked)
+  ✓ Intercounty Judicial Sales Corp — sales (statewide): 563 (ok)
+  ✓ Kane County Sheriff — upcoming foreclosure sales (PDF): 46 (ok)
+  ✓ DuPage County Sheriff - upcoming foreclosure sales: 85 (ok)
+  ✓ Cook County Clerk — recorded LIS PENDENS (CRS): 750 (ok)
+  ✓ The Judicial Sales Corp — upcoming sales (multi-county): 625 (ok)
+  ✓ Lake County Sheriff — CivilView foreclosure sales: 95 (ok)
+  ✓ Will County Recorder — recorded LIS PENDENS (Fidlar AvaWeb): 716 (ok)
+  ✓ Public Notice Illinois - probate claims notices (estates): 120 (ok)
+  ✓ Public Notice Illinois — statewide foreclosure notices: 1000 (ok)
+  ✓ Will County Sheriff — upcoming foreclosure sales: 131 (ok)
+DRY RUN (live scan, as of 2026-09-28, state /private/tmp/claude-501/-Users-bradyschwartz/e5f29a79-0384-4683-8546-72da04e56eeb/scratchpad/state/int-dry-state.json, read only)
+pool 2011 leads, 41 pass every gate
+gate drops: no_gap 793, no_address 552, no_owner 195, entity_owner 98, already_sent 98, weak_value 90, short_runway 82, dead_status 26, small_gap 26, out_of_radius 6, suspect_value 4
+pool health: ok
+
+#1 PICK  8645 Cashel Ln., Tinley Park (Will), owner CYNTHIA SUTHERIN as Special Representative for SANDRA L. GIBSON a/k/a SANDY L. GIBSON (Deceased), BRIAN GIBSON, JAMES B. GIBSON, SADIE GIBSON, HUNTER GIBSON, UNITED STATES OF AMERICA, BROOKSIDE GLEN P.U.D TOWNHOME PHASE 3 OWNERS ASSOCIATION, UNKNOWN HEIRS AND LEGATEES OF SANDRA L. GIBSON a/k/a SANDY L. GIBSON, UNKNOWN OWNERS AND NON-RECORD CLAIMANTS
+   EV $221k | equity $322k (61%) | market $530k [comps] | payoff $208k [judgment] | conf high | pStage 0.98 pContact 1.00 pConf 1.00 pProx 0.70 | runway 10d | 23.7 mi | stage sale_10_21 estate
+   > Worth about $530,000, owes about $208,000 (the court judgment plus 10 percent), so about $322,000 of equity (61 percent).
+   > The value comes from 85 recent sales in the area and agrees with the county assessor.
+   > The sale is in 10 days.
+   > It is 23.7 miles from the office.
+   > The owner appears to have died, since the records name an estate or heirs. Heirs usually want a fast, simple sale.
+   > Our confidence in the numbers is high.
+#2      640 Aspen St, Frankfort (Will), owner Brittany Ramos; et. al.
+   EV $211k | equity $301k (51%) | market $595k [comps] | payoff $294k [judgment] | conf high | pStage 1.00 pContact 1.00 pConf 1.00 pProx 0.70 | runway 38d | 29.6 mi | stage sale_22_90
+#3      101 HOWE TERRACE, BARRINGTON (Cook), owner PAUL TRENT
+   EV $202k | equity $481k (60%) | market $805k [comps] | payoff $324k [last sale] | conf low | pStage 1.00 pContact 1.00 pConf 0.60 pProx 0.70 | runway 78d | 20.7 mi | stage sale_22_90
+#4      702 Halstead Avenue, Romeoville (Will), owner S. Joseph Smailis; et. al.
+   EV $176k | equity $195k (61%) | market $320k [comps] | payoff $125k [judgment] | conf high | pStage 1.00 pContact 1.00 pConf 1.00 pProx 0.90 | runway 31d | 19.9 mi | stage sale_22_90
+#5      347 Galway Court, Bloomingdale (DuPage), owner ESTATE OF PATRICIA M. CERAMI
+   EV $171k | equity $309k (40%) | market $773k [assessor] | payoff $464k [probate estimate] | conf low | pStage 0.92 pContact 1.00 pConf 0.60 pProx 1.00 | no sale date | 8.5 mi | stage probate estate
+#6      12726 Shenandoah Trail, Plainfield (Will), owner Arthur J Ferrara; et. al.
+   EV $157k | equity $263k (45%) | market $590k [comps] | payoff $327k [judgment] | conf high | pStage 0.85 pContact 1.00 pConf 1.00 pProx 0.70 | runway 17d | 22.1 mi | stage sale_10_21
+near miss: 941 Summit Street, Downers Grove [short_runway] The sale is only 1 day away, which is less than the 10 days Vince needs to act.
+
+── message that would be sent (not sent: dry run) ──
+👤 CYNTHIA SUTHERIN as Special Representative for SANDRA L. GIBSON a/k/a SANDY L. GIBSON (Deceased)
+☀️ Today's lead: 8645 Cashel Ln., Tinley Park (Will County)
+
+Why this one:
+Worth about $530,000, owes about $208,000 (the court judgment plus 10 percent), so about $322,000 of equity (61 percent).
+The value comes from 85 recent sales in the area and agrees with the county assessor.
+The sale is in 10 days.
+It is 23.7 miles from the office.
+The owner appears to have died, since the records name an estate or heirs. Heirs usually want a fast, simple sale.
+Our confidence in the numbers is high.
+The sale date is 2026-10-08.
+📞 Put the name above into your app to get the number.
+Case 25 FC 1232-0.
+🔗 https://www.willcosheriff.org/foreclosures/index.php/upcoming-sales/details/5/7575
+
+Tap a button after you call. If the lead is bad, tap the reason so tomorrow's pick gets better.
+
+# state copy before: 1790641563 210254 b5e6147f77c2691618733c92ab1fc6eca40c6bd1  /private/tmp/claude-501/-Users-bradyschwartz/e5f29a79-0384-4683-8546-72da04e56eeb/scratchpad/state/int-dry-state.json 
+# state copy after:  1790641563 210254 b5e6147f77c2691618733c92ab1fc6eca40c6bd1  /private/tmp/claude-501/-Users-bradyschwartz/e5f29a79-0384-4683-8546-72da04e56eeb/scratchpad/state/int-dry-state.json
+# send-guard: 0 blocked send attempts (telegram/smtp/mail); hosts contacted:
+#   2473 datacatalog.cookcountyil.gov
+#    732 gis.willcountyillinois.com
+#    567 data.illinois.gov
+#    465 d1ebsyxxbc7tep.cloudfront.net
+#    127 gis.dupageco.org
+#     96 salesweb.civilview.com
+#     68 gistech.countyofkane.org
+#     66 www.willcosheriff.org
+#     36 maps.lakecountyil.gov
+#     33 www.publicnoticeillinois.com
+#     21 services1.arcgis.com
+#     15 crs.cookcountyclerkil.gov
+#      7 ilwill.fidlar.com
+#      1 www.tjsc.com
+#      1 www.mchenrysheriff.org
+#      1 intercountyjudicialsales.com
+#      1 apps.myocv.com
+#      1 applications.kanecountyil.gov

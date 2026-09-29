@@ -1,36 +1,45 @@
-// One-shot: the moment ANYONE messages @BradyVinceCook_bot, capture the chat id
-// and fire the real Vince lead pings. Telegram forbids a bot from messaging a user
-// who hasn't opened the chat first, so this waits for that first tap, then sends.
+// One-shot onboarding: the moment someone taps Start in @BradyVinceCook_bot,
+// capture the chat id and send a welcome plus today's ONE pick. Telegram forbids
+// a bot from messaging a user who has not opened the chat first, so this waits
+// for that first tap. It does not mark anything as sent (the daily digest owns
+// that), and VINCE_PING_OFF=1 stops it before any network call.
+//
+// ⚠️ Do not run this while the Railway tracker is live: two getUpdates callers
+// make Telegram return 409.
 process.env.PROFILE = "vince";
+if (process.env.VINCE_PING_OFF === "1") {
+  console.log("VINCE_PING_OFF=1, so nothing will be sent. Exiting.");
+  process.exit(0);
+}
 const { readFileSync } = await import("node:fs");
 const path = await import("node:path");
-const { sendText, formatLead } = await import("./src/notify.js");
+const { sendText, formatLeadName, formatLeadDetails } =
+  await import("./src/notify.js");
+const { tg, chatIds } = await import("./src/telegram.js");
 const { secret } = await import("./src/secrets.js");
+const { loadState } = await import("./src/vstate.js");
+const { loadPick, makeIsSent, sentSetFor } = await import("./src/sentkeys.js");
+const { PROFILE } = await import("./src/profile.js");
 
-const TOKEN = secret("VINCE_BOT_TOKEN");
-const api = (m) => `https://api.telegram.org/bot${TOKEN}/${m}`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const WAIT_MIN = 45;
 
 async function haveChat() {
   if (secret("VINCE_CHAT_ID")) return true;
-  try {
-    const j = await (await fetch(api("getUpdates"))).json();
-    return (j.result || []).some(
-      (u) => (u.message || u.my_chat_member || {}).chat?.id,
-    );
-  } catch {
-    return false;
-  }
+  const j = await tg("getUpdates", {});
+  return (j?.result || []).some(
+    (u) => (u.message || u.my_chat_member || {}).chat?.id,
+  );
 }
 
 const leads = JSON.parse(
   readFileSync(path.join(process.cwd(), "demo", "leads-vince.json"), "utf8"),
 ).leads;
 
-const DEADLINE = Date.now() + 45 * 60_000; // wait up to 45 min for the first tap
+const deadline = Date.now() + WAIT_MIN * 60_000;
 console.log("waiting for you to tap Start in @BradyVinceCook_bot …");
 let ready = false;
-while (Date.now() < DEADLINE) {
+while (Date.now() < deadline) {
   if (await haveChat()) {
     ready = true;
     break;
@@ -39,25 +48,40 @@ while (Date.now() < DEADLINE) {
 }
 if (!ready) {
   console.log(
-    "no chat yet after 15 min — tap Start and re-run `node vince-ping-now.js`.",
+    `No chat yet after ${WAIT_MIN} minutes. Tap Start and run \`node vince-ping-now.js\` again.`,
   );
   process.exit(0);
 }
 
-// sendText() auto-captures + remembers the chat id via getUpdates on first send.
 const hello = await sendText(
-  `✅ <b>Connected.</b> Vince distressed-lead alerts are live on this chat. Here are the current top leads (DuPage + Berkeley/Hillside/Northlake/Bellwood), ranked by under-market value gap. New records ping the moment they hit.`,
+  "✅ <b>Connected.</b> Vince's lead alerts are live on this chat. You will get one lead a day at 10:00 Chicago time, the best deal in the pool, or a short note when nothing is worth your time.",
 );
-console.log("connect sent to", hello.sentTo, "chat(s)");
+console.log("welcome sent to", hello.sentTo, "chat(s)");
 
-const top = [...leads]
-  .sort((a, b) => (b.valueGap ?? -Infinity) - (a.valueGap ?? -Infinity))
-  .slice(0, 6);
-let sent = 0;
-for (const l of top) {
-  const r = await sendText(formatLead(l));
-  if (r.sentTo) sent++;
-  await sleep(500);
+// Today's single pick, checked against everything already sent (read only).
+const pick = await loadPick();
+const state = loadState(PROFILE.stateFile);
+const r = pick.pickDaily(leads, {
+  isSent: makeIsSent(pick, sentSetFor(pick, state)),
+});
+if (!r.pick) {
+  console.log(
+    "no lead passes every gate right now; only the welcome was sent.",
+  );
+  process.exit(0);
 }
-console.log(`pinged ${sent}/${top.length} leads. Done.`);
+for (const id of await chatIds()) {
+  await tg("sendMessage", {
+    chat_id: id,
+    text: formatLeadName(r.pick),
+    parse_mode: "HTML",
+  });
+  await tg("sendMessage", {
+    chat_id: id,
+    text: formatLeadDetails(r.pick),
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+  });
+}
+console.log(`sent today's pick: ${r.pick.address}, ${r.pick.city}. Done.`);
 process.exit(0);

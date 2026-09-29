@@ -8,7 +8,8 @@
     "start": "node server.js",
     "scrape": "node src/cli.js",
     "vince": "node vince-track.js",
-    "vince:once": "node vince-track.js --once"
+    "vince:once": "node vince-track.js --once",
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=20"

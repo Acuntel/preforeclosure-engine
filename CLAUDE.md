@@ -6,41 +6,50 @@ Rockford/Barrington investor **"Z"** (sibling of `property-intel`, built for Vin
 **Read `MASTER_PROMPT.md` first — it is the binding spec (V2, post-dinner 2026-06-10).**
 **`TODO.md` is the live build checklist for v1.0.** Quick orientation:
 
-## Vince live tracker (added 2026-07-13) — separate from Z's REDLINE
+## Vince live tracker (added 2026-07-13; one-a-day picker 2026-09-28)
 
-Brady's investor **Vince** wants under-market cash deals (offers ~$5k, steps into the deal
-where a home is worth well MORE than what's owed — ranked by the biggest UNDER-MARKET gap, NOT
-cheapest price). He works **DuPage** (where he lives) + four **west-Cook** suburbs: **Berkeley,
-Hillside, Northlake, Bellwood**. One command tracks it live and pings new leads to Telegram:
+Separate from Z's REDLINE. Binding spec: `VINCE_MASTER_PROMPT.md` (approved 2026-09-28; decisions in
+its section 2 are locked). Vince wants under-market cash deals near his Elmhurst office. He gets
+**exactly ONE lead per day at 10:00 Chicago** (Telegram + email), or an honest "No deal worth your
+time today. Closest miss: ..." line. Instant alerts are off (`VINCE_INSTANT=1` to revive).
 
 ```
-node vince-track.js            # track forever, ping each NEW lead as it appears
-node vince-track.js --once     # single pass (cron-friendly)
-VINCE_INTERVAL_MIN=30 node vince-track.js
+node vince-track.js                    # Railway start command: scan hourly, pick at 10:00
+node vince-track.js --dry-run [--from leads.json] [--as-of YYYY-MM-DD]   # never sends, never writes state
+node scripts/backtest-pick.js data/prod-archives <stateCopy>             # picker over archived pools
+npm test                               # node --test test/*.test.js (Node 20.20.2 = Railway)
 ```
 
-- **Data set** is selected internally (`PROFILE=vince`, `src/profile.js`) — Brady doesn't manage
-  profiles; Z's default instance (`npm start` / `npm run scrape`) is untouched (own ports/files).
-- **Earliest signal = DuPage recorded LIS PENDENS** (`src/collectors/recorder-dupage.js`,
-  Playwright): `recorder.dupagecounty.gov/Search.aspx` is free but double-gated — ASP.NET **NoBot**
-  JS challenge + a client-side "narrow criteria" alert on date+type. We clear both with a headless
-  browser + a direct `__doPostBack` (bypasses the blocking onclick; browser still computes NoBot).
-  Queries **one day at a time** over `DUPAGE_LP_LOOKBACK_DAYS` (default 30). ⚠️ site is slow &
-  rate-limits repeated hits; collector retries + degrades, never breaks the run. **Still needs one
-  populated-grid capture to confirm the results-table column parser** (a run returned 0 rows w/o
-  the throttle dialog — either genuinely-no-LPs or a parse miss; status note distinguishes them).
-- Other Vince triggers reuse existing working collectors filtered to scope: **tjsc, intercounty,
-  public-notice-il**. Cook munis whitelisted in `src/profile.js` (`inScope`); Chicago excluded.
-- **Value gap** (`src/value.js`): market (Cook neighborhood comps by PIN-prefix sales, else
-  assessor fair-cash) − debt (judgment ∥ opening bid ∥ mortgage). ⚠️ `datacatalog.cookcountyil.gov`
-  is blocked in the sandbox — comps degrade gracefully; verify comps when network allows.
-- **Pings** (`src/notify.js`) go through the **dedicated bot `@BradyVinceCook_bot`** — token in
-  `~/Documents/redline-private/vince-bot.local.json` (NEVER in repo; loaded by `src/secrets.js`).
-  This bot is SEPARATE from the Nesso/tentacle bot. Run-diff state in `.vince-state.json` (first
-  run = baseline, no blast). ⚠️ **Brady must tap Start in @BradyVinceCook_bot once** so `getUpdates`
-  captures his chat id (auto-remembered); until then pings send to 0 chats.
-- **Phones** (`src/collectors/skiptrace.js`): owner phone via pay-per-match API (BatchData),
-  shortlist-only, HARD OFF unless `SKIPTRACE_API_KEY` set. No key = no cost, no PII call.
+- **Scope** (`src/profile.js`, `PROFILE=vince`): Cook + DuPage, Lake, Will, Kane, McHenry, every
+  county held to `VINCE_RADIUS_MI` (default 30) of Elmhurst. Chicago proper and Bellwood excluded.
+- **Triggers**: dupage-sheriff (OCV JSON feed), probate-pni (Public Notice IL claims notices),
+  tjsc, intercounty, public-notice-il, recorder-will, recorder-cook (date-chunked under the CRS
+  1000-row cap), lake/will sheriff. recorder-lake, kane-sheriff, mchenry-sheriff stay dead on
+  Railway (Node 20, no poppler; D7). Retired: probate-dailyherald, chicago-violations,
+  craigslist-fsbo, recorder-dupage.
+- **Picker** (`src/pick.js` + `pick-eval.js`, `value-math.js`, `owner.js`, `alias.js`): hard gates
+  (dead status on any source, sale passed or under `VINCE_MIN_RUNWAY_DAYS`=10, no address/owner,
+  entity or government owner, outside radius, already sent on any alias, suspect or weak value, gap
+  under $50k/20%), then EV = equity x P_stage x P_contact x P_conf x P_prox. Market = assessor
+  anchor (Cook AV x10, collar x3) unless 5+ distinct comps agree; payoff = judgment x1.1, true
+  opening bid, mortgage, else last sale x0.9 (low confidence). Estates get x1.15 and a probate path.
+- **Send path** (`src/digest.js`, split out of notify.js): hard cap 1 (`VINCE_DAILY_COUNT` ignored),
+  pending marker saved before sending, at-most-once on crash, every alias stored in sentKeys.
+  Degraded pool (comps under 50% or tjsc/intercounty/recorder-cook down) defers until
+  `VINCE_DIGEST_CUTOFF_HOUR`=14. Pool archive + `picks/<date>.json` go to `archiveDir()`.
+  DuPage cases that leave the sheriff list before their sale are marked cancelled (`src/dupage-cancel.js`).
+- **Review fixes 2026-09-29:** market capped at assessor x county lag (Cook 1.15, Will 1.35, DuPage 1.1,
+  `VINCE_MARKET_CAP_<COUNTY>`); townhome/condo/PUD falls back to the assessor; a court payoff under 25% of
+  value is a possible second loan (low, or suspect for MCLP/association plaintiffs); every pick needs an
+  assessor anchor; estate x1.15 only with 21+ days runway; `VINCE_MIN_EV` (50000) floor sends the no-deal
+  line instead of filler; collar leads with no sale history get their own last sale from MyDec (24h cache).
+- **Send guards:** real Telegram/email only on Railway (or `VINCE_ALLOW_LOCAL_SEND=1`); `--digest-now` never
+  sends twice in a day without `--resend`; if the name goes out and the card fails, the card is retried in the
+  same pass and the pick is never resent; the follow-up on yesterday's lead rides on today's card (no extra
+  message); an unreadable state file stops the pass instead of being overwritten.
+- **Phones: none** (D6). Skip-trace is off for Vince; the card is name + address and Vince uses Forewarn.
+- **Bot** `@BradyVinceCook_bot`; token from Railway vars or `~/Documents/redline-private/vince-bot.local.json`
+  (never in repo). Dev runs always use `VINCE_PING_OFF=1 VINCE_EMAIL_OFF=1` and a scratch `VINCE_STATE_FILE`.
 
 ## What this is
 

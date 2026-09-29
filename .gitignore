@@ -13,3 +13,4 @@ output/
 scraper_output/
 will_pdfs/
 lambda_relay/.env*
+data/prod-archives/

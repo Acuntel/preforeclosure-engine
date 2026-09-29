@@ -8,9 +8,12 @@
 //   - reachable (we have a phone) = actionable now
 //   - absentee owner / out-of-area heir ("kids who inherit don't care, just want money")
 //   - urgency (a sale/auction date bearing down)
-// A lead must clear VINCE_PING_MIN (default 55) to ping; the rest sit in the board.
+// A lead must clear VINCE_PING_MIN (default 60) to ping; the rest sit in the board.
+// Since 2026-09-28 the one-a-day pick does NOT use this score: src/pick.js
+// ranks by expected profit. Tiers remain for the board and the legacy paths.
 import { daysTo } from "./score.js";
 import { leadDistanceMi, proximityPoints } from "./proximity.js";
+import { ESTATE_RE } from "./owner.js";
 
 // Motivated-seller strength by distress signal, ranked by CLOCK STRENGTH — the #1
 // predictor of a closed cash deal (per a 20k-closed-deal dataset) is an externally
@@ -52,6 +55,10 @@ function distressStrength(lead) {
   ]
     .filter(Boolean)
     .map((s) => String(s).toLowerCase());
+  // dead-owner markers in the caption (UNKNOWN HEIRS, ESTATE OF, "... EST")
+  // count as probate distress (spec P1-1)
+  if ([lead.owner, lead.lender, lead.defendant].some((f) => f && ESTATE_RE.test(String(f))))
+    keys.push("probate");
   let best = 0;
   let label = null;
   for (const [k, w] of Object.entries(DISTRESS))
@@ -161,10 +168,14 @@ export function dealQuality(lead) {
     }
   }
 
-  score = Math.max(0, Math.min(100, score));
+  // Display only. The daily pick ranks by EV in pick.js and never reads the
+  // quality score, the tier, or this 100 cap.
+  const raw = Math.max(0, score);
+  score = Math.min(100, raw);
   const tier = score >= 70 ? "A" : score >= 55 ? "B" : score >= 40 ? "C" : "D";
   return {
     quality: score,
+    qualityRaw: raw,
     tier,
     reasons,
     misses,
@@ -216,6 +227,7 @@ export function scoreQuality(leads) {
   for (const l of leads) {
     const q = dealQuality(l);
     l.quality = q.quality;
+    l.qualityRaw = q.qualityRaw;
     l.tier = q.tier;
     l.qualityReasons = q.reasons;
     l.qualityMisses = q.misses;

@@ -44,8 +44,8 @@ const ENRICH_IDS = [
 
 // County scope + priority come from the active PROFILE (src/profile.js):
 //   z     -> Winnebago + Boone + collar (the original REDLINE)
-//   vince -> DuPage + whitelisted west-Cook suburbs (value-gap ranked)
-// inScope() handles Vince's Cook municipality whitelist; priority() sorts home
+//   vince -> Cook + collar counties within VINCE_RADIUS_MI (30) of Elmhurst
+// inScope() applies the radius and Chicago/Bellwood exclusions; priority() sorts home
 // turf first. Leads outside scope are dropped.
 
 // Per-source timeout caps (ms). Known login-gated sources fast-fail so they
@@ -56,9 +56,11 @@ const TIMEOUTS = {
   "lake-sheriff": 120000,
   "recorder-lake": 120000, // WebSocket, paginated
   "recorder-will": 150000, // chunked by month over 180d
-  "recorder-cook": 120000, // token + POST + paginated result fetches
+  "recorder-cook": 240000, // token + 4 date-chunk POSTs + paginated result fetches
   "recorder-dupage": 360000, // headless browser, one query per day over lookback
   "probate-dailyherald": 90000, // fetches each notice detail page
+  "dupage-sheriff": 60000, // one GET of the OCV JSON feed (+ retries)
+  "probate-pni": 90000, // ~9 PNI requests, 3 to 6 s per pass
 };
 
 // In-process result caches so a 10-minute refresh stays POLITE: heavy/slow feeds
@@ -78,6 +80,8 @@ const TRIG_TTL = {
   "probate-dailyherald": 60 * 60e3, // notices update a few times/day
   "chicago-violations": 60 * 60e3, // Socrata refreshes daily
   "craigslist-fsbo": 2 * 3600e3, // headed browser — poll gently
+  "dupage-sheriff": 60 * 60e3, // sale list, TTL 1h (spec P1-2)
+  "probate-pni": 3 * 3600e3, // claims notices publish daily; same pace as public-notice-il
 };
 const TRIG_TTL_DEFAULT = 9 * 60e3; // light single-GET lists: refresh ~every cycle
 const ENR_TTL = 6 * 3600e3; // assessor/parcel data barely changes
@@ -268,6 +272,9 @@ export async function runAll(onProgress = () => {}, { max = Infinity } = {}) {
         // the county assessor returning a matching parcel is an INDEPENDENT
         // verification of the property + owner (a second confirming source).
         if (e.pin || e.owner) lead.recordVerified = true;
+        // the county tax-bill owner, kept even when the trigger named an owner
+        // (pick.js checks that a probate estate actually owns the house)
+        if (e.owner) lead.taxOwner = e.owner;
       } catch {}
     }
     onProgress({ phase: "enrich", done: ++eDone, total: kept.length });

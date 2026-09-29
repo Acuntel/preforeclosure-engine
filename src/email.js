@@ -6,6 +6,7 @@
 // HTTPS through the vince-mail-relay Vercel function (which holds the Gmail
 // creds); direct Gmail SMTP over TLS 465 stays as the fallback for hosts with
 // open SMTP (the Mac). Silent no-op when neither transport is configured.
+import { liveHost } from "./telegram.js";
 import tls from "node:tls";
 import { secret } from "./secrets.js";
 
@@ -15,7 +16,14 @@ const CC = () => process.env.VINCE_LEAD_EMAIL_CC || "bradyschwartz25@gmail.com";
 const relayConfigured = () =>
   !!(secret("VINCE_MAIL_RELAY_URL") && secret("VINCE_MAIL_RELAY_SECRET"));
 
+// Hard off-switches: VINCE_EMAIL_OFF=1 stops email only, VINCE_PING_OFF=1 stops
+// every outbound message (Telegram and email). Every dev and test run sets both.
+export const emailOff = () =>
+  process.env.VINCE_EMAIL_OFF === "1" || process.env.VINCE_PING_OFF === "1";
+
 export function emailEnabled() {
+  if (emailOff()) return false;
+  if (!liveHost()) return false; // same one-instance guard as Telegram
   return (
     relayConfigured() ||
     !!(secret("GMAIL_USER") && secret("GMAIL_APP_PASSWORD"))
@@ -107,73 +115,92 @@ const money = (n) =>
 
 const SOURCES = {
   digest:
-    "Source: the lead tracker's DAILY DIGEST. This is one of today's top 3 picks across metro Chicagoland.",
+    "Source: the lead tracker's daily pick. This is the one lead worth your time today across metro Chicagoland.",
   instant:
-    "Source: the lead tracker's INSTANT ALERT. This filing just hit the records and could not wait for the daily digest.",
+    "Source: the lead tracker's instant alert. This filing just hit the records and could not wait for the daily pick.",
 };
 
-function leadText(l, contactName, source) {
+const BRADY_LINE =
+  "What to do: look up the phone number for this name and address (Forewarn) and text it to Brady at (847) 212-2142. If a phone number is already listed below, just send that number to Brady and he will make the call.";
+
+export function leadText(l, contactName, source) {
   const addr =
     [l.address, l.city].filter(Boolean).join(", ") || "(address pending)";
+  const reasons = (l.pickEval?.reasons || []).filter(Boolean);
   const lines = [
     SOURCES[source] || SOURCES.digest,
-    "What to do: look up the phone number for this name and address (Forewarn) and text it to Brady at (847) 212-2142. If a phone number is already listed below, just send that number to Brady and he will make the call.",
+    BRADY_LINE,
     "",
     `Contact: ${contactName}`,
     `Address: ${addr} (${l.county || "?"} County)`,
-    `Quality: ${l.tier || "?"} ${l.quality ?? ""}`.trim(),
+    reasons.length ? "" : null,
+    reasons.length ? "Why this one:" : null,
+    ...reasons,
+    reasons.length ? "" : null,
+    !reasons.length && l.valueGap != null
+      ? `Value gap: ${money(l.valueGap)}${l.valueGapPct != null ? ` (${l.valueGapPct}%)` : ""}, ${l.valueConfidence || "unknown"} confidence.`
+      : null,
+    !reasons.length && l.distanceMi != null
+      ? `Distance: ${l.distanceMi} miles from Elmhurst.`
+      : null,
     l.distress || l.signal ? `Distress: ${l.distress || l.signal}` : null,
-    l.distanceMi != null ? `Distance: ${l.distanceMi} mi from Elmhurst` : null,
-    l.valueGap != null
-      ? `Value gap: ${money(l.valueGap)}${l.valueGapPct != null ? ` (${l.valueGapPct}%)` : ""} · ${l.valueConfidence || "?"} confidence`
-      : null,
-    l.estMarketComps || l.estMarket
-      ? `Market ${money(l.estMarketComps || l.estMarket)}${l.compsCount ? ` (${l.compsCount} comps)` : ""} minus cost ${money(l.estDebt)}`
-      : null,
     l.phone
       ? `Phone: ${l.phone}${l.phoneType ? ` (${l.phoneType})` : ""}`
-      : "Phone: none scraped, search the name above in Forewarn",
+      : "Phone: none scraped, so search the name above in Forewarn.",
     l.email ? `Email: ${l.email}` : null,
     l.heirMailing ? `Heir mailing: ${l.heirMailing}` : null,
     l.sale ? `Sale date: ${l.sale}` : null,
-    l.openingBid ? `Opening bid: ${money(l.openingBid)}` : null,
     l.caseNumber
       ? `Case: ${l.caseNumber}`
       : l.docNumber
         ? `Doc: ${l.docNumber}`
         : null,
     l.sourceUrl ? `Source: ${l.sourceUrl}` : null,
-    l.qualityReasons && l.qualityReasons.length
-      ? `Why it qualified: ${l.qualityReasons.join(" · ")}`
-      : null,
     "",
-    "Sent automatically by the lead tracker alongside the Telegram ping.",
+    "If this lead is bad, reply with the reason (value wrong, already sold, too far, or can't reach) so tomorrow's pick gets better.",
+    "Sent automatically by the lead tracker alongside the Telegram message.",
   ];
-  return lines.filter(Boolean).join("\n");
+  return lines.filter((x) => x != null).join("\n");
+}
+
+async function deliver(msg) {
+  if (relayConfigured()) return relaySend(msg);
+  return smtpSend({
+    from: `"Vince Lead Tracker" <${secret("GMAIL_USER")}>`,
+    ...msg,
+  });
+}
+
+// Plain notices (no-deal day, next-day follow-up). Same off-switches.
+export async function emailNotice({ subject, text }) {
+  if (!emailEnabled()) return false;
+  try {
+    await deliver({ to: [TO(), CC()], subject, text });
+    console.log(`  📧 emailed notice to ${TO()} (${subject})`);
+    return true;
+  } catch (e) {
+    console.error(`  📧 notice email failed: ${e.message || e.constructor.name}`);
+    return false;
+  }
 }
 
 export async function emailLead(
   l,
-  { contactName = "?", source = "digest" } = {},
+  { contactName = "?", source = "digest", preface = null } = {},
 ) {
-  if (!emailEnabled()) return false;
+  if (!emailEnabled()) return false; // also covers VINCE_EMAIL_OFF / VINCE_PING_OFF
   const addr =
     [l.address, l.city].filter(Boolean).join(", ") || "address pending";
   const label =
-    source === "instant" ? "🚨 Instant alert lead" : "📋 Daily digest lead";
+    source === "instant" ? "🚨 Instant alert lead" : "📋 Today's lead";
   const subject = `${label}: ${contactName} · ${addr}`;
   const msg = {
     to: [TO(), CC()],
     subject,
-    text: leadText(l, contactName, source),
+    text: (preface ? `${preface}\n\n` : "") + leadText(l, contactName, source),
   };
   try {
-    if (relayConfigured()) await relaySend(msg);
-    else
-      await smtpSend({
-        from: `"Vince Lead Tracker" <${secret("GMAIL_USER")}>`,
-        ...msg,
-      });
+    await deliver(msg);
     console.log(`  📧 emailed lead to ${TO()} (${contactName})`);
     return true;
   } catch (e) {

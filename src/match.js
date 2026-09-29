@@ -46,6 +46,17 @@ export function normAddr(a) {
     .map((t) => DIR[t] || SUF[t] || t)
     .join(" ");
 }
+// Same key but the unit is KEPT ("45 PRAIRIE PARK DR UNIT 409"), so two condo
+// units never read as one property. Used for sent-dedupe aliases.
+export function normAddrUnit(a) {
+  if (!a) return "";
+  const s = String(a).toUpperCase().replace(/[.,]/g, " ");
+  const m = /(?:\b(?:UNIT|APT|STE|SUITE|LOT)\b|#)\s*([A-Z0-9-]+)/.exec(s);
+  const base = normAddr(s.replace(/(?:\b(?:UNIT|APT|STE|SUITE|LOT)\b|#).*$/, " "));
+  if (!base) return "";
+  return m ? `${base} UNIT ${m[1].replace(/^0+(?=\d)/, "")}` : base;
+}
+
 // Canonicalize IL case numbers so format variants match:
 //   "2025 FC 394" / "2025-FC-0000394" / "25 FC 394"  ->  "2025FC394"
 export function normCase(c) {
@@ -95,6 +106,9 @@ const SRC_LABEL = {
   "will-sheriff": "Will County Sheriff",
   "recorder-lake": "Lake Recorder (lis pendens)",
   "recorder-will": "Will Recorder (lis pendens)",
+  "recorder-cook": "Cook Recorder (lis pendens)",
+  "dupage-sheriff": "DuPage County Sheriff",
+  "probate-pni": "Public Notice IL (probate)",
 };
 const label = (id) => SRC_LABEL[id] || id;
 
@@ -171,6 +185,16 @@ function mergeGroup(recs) {
     ),
   ];
   out.sources = sources;
+  // every status any merged source reported (a sale one feed shows as
+  // "Cancelled" is dead even when another feed still lists it)
+  const statuses = [
+    ...new Set(
+      recs
+        .flatMap((r) => [...(r.statuses || []), r.status])
+        .filter((v) => v != null && v !== ""),
+    ),
+  ];
+  if (statuses.length) out.statuses = statuses;
   out.sourceLabels = sources.map(label);
   out.confirmations = sources.length;
   // the county assessor returning a matching parcel = an independent verification
